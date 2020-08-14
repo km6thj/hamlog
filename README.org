@@ -15,14 +15,27 @@ it should already be usable to try it out.
 
 * Hamlog Application Usage
 
-
 #+CAPTION: The user interface for the hamlog application.
 #+attr_html: :width 50%
 [[./doc/screenshot1.png]]
 
+You can always get a help for command line options using
+#+begin_src shell
+hamlog --help
+hamlog
 
+Usage: hamlog [--cabrillo STRING] [--outfile STRING] [--config STRING]
+              [--points STRING]
 
-Start the application from a terminal.
+Available options:
+  -h,--help                Show this help text
+  --cabrillo STRING        Export to cabrillo; argument one of {naqp, fieldday}
+  --outfile STRING         Output file for cabrillo export.
+  --config STRING          hamlog.config file to use
+  --points STRING          Points for a contest, one of {fieldday}
+#+end_src
+
+Start the application from a terminal without any command line arguments.
 Quit the application again.
 It will write a file /hamlog.config/, which you can edit.
 The file is in JSON format and contains
@@ -43,7 +56,91 @@ On exiting, the application also writes the contacts log file, the name of which
 is configurable in /hamlog.config/.
 
 Start the application again from the terminal and start adding contacts.
-There is a small help
+There is a small help window that will tell you which shortcut keys you can use.
+
+* Configuring the hamlog.config file
+The configuration file can be modified to
+- change what the default or fixed values for some entries are
+- change what is visible in the terminal UI
+
+Take this configuration file excerpt:
+#+begin_src javascript
+{
+    "_configLogFile": "hamlog.json",
+    "_configQsoDefaults": {
+        "_qsoDefaultRST": {
+            "tag": "FixedValue",
+            "contents": {
+                "tag": "RST",
+                "contents": [
+                    0,
+                    0,
+                    0
+                ]
+            }
+        },
+        "_qsoDefaultFrequency": {
+            "tag": "DefaultValue",
+            "contents": 14.0582
+        },
+        "_qsoDefaultSentLocation": {
+            "tag": "FixedValue",
+            "contents": "CA"
+        },
+... and so on
+#+end_src
+The key names should be somewhat self-explanatory for Amateur Radio operators.
+For example, qsoDefaultSentLocation is the location that you sent during a
+contact. If that is always the same, you may want to put either a DefaultValue in there,
+like in the entry for qsoDefaultFrequency above, or a FixedValue as in qsoDefaultSentLocation
+above. DefaultValue means that the entry will be pre-populated with the given "contents" value,
+but can be changed from the UI. FixedValue means the value will also be set to the one given in "contents",
+but it will not be changeable from the UI and it will not be visible in the UI.
+This feature can be used to remove entries that you want to be the same anyway
+and that would just be clutter in the UI.
+
+This can be useful for contests, when all you want to see is for example the Exchange fields, and
+received callsigns.
+You would then set all fields that you don't want to see to FixedValue.
+
+For each configuration you want to use, you can simply create a new directory
+and then run the application from within that directory to create a new configuration file
+that you can then taylor to what you want to do, for example for another contest.
+
+For each field that normally represents a part of an exchange in a radio contact,
+there is a version containing the word "Sent" and one that does not contain "Sent".
+"Sent" is the value that you have sent, and the other one is the one you received.
+For example, there is "qsoDefaultSentLocation" and "qsoDefaultLocation".
+
+* Export to Cabrillo format
+You can export an existing log to Cabrillo format.
+Currently, ARRL Field Day and NAQP outputs are supported.
+This is done using the application from the command line, like so:
+#+begin_src shell
+hamlog --cabrillo fieldday --outfile test.cab
+#+end_src
+Don't forget to check and edit the resulting file before uploading it -- no guarantees are being made :)
+
+* Calculating points for some contests
+You can also have the application compute points for some contests.
+Currently, ARRL Field Day (I know, not a contest), NAQP-CW and NAQP-SSB are supported.
+Use at your own risk, all this is to the best of my knowledge.
+Usage example:
+#+begin_src shell
+hamlog --points naqpcw
+Config file read successfully.
+Points total: PointsNAQP {pnaqpPointsPerBand = [(40m,6.0,7.0),(20m,9.0,10.0)], pnaqpTotalPoints = 132.0}
+#+end_src
+or
+#+begin_src shell
+hamlog --points fieldday
+Config file read successfully.
+Points total: FieldDayPoints {fdpTotal = 168.0, fdpPowerMult = 2.0, fdpBonus = 100.0, fdpQsos = [("CW",[("40m",7),("20m",10)]),("PH",[]),("DATA",[])]}
+#+end_src
+The output looks somewhat raw, but it's fairly straighforward to read. Since the Field Day web entry forms are expecting the number of contacts ordered by
+communications mode and band, that is what is output in addition to the computed points.
+This is not fully configurable at this time and therefore not usable for everyone.
+If you want to add another contest, please do so!
 
 * Library Usage
 The HamLog monad is meant as an easy to use back end to
@@ -60,7 +157,7 @@ runHamLog defaultConfig emptyLogState $ do
 Note that most things in this library are subject to change still.
 
 * Todo List
-** TODO Compute distances between locations based on Travel library / Jord / OSM
+** TODO Compute distances between locations
 ** TODO Add Cabrillo output to Contest typeclass.
 ** TODO Update QSO time while typing QSO.
    Update the UTC time with e.g. CTRL-T.
