@@ -13,6 +13,17 @@ There are two parts:
 This is in an early development stage, but
 it should already be usable to try it out.
 
+* Compiling
+Get GHC and Cabal using e.g. [[https://www.haskell.org/ghcup/]].
+Run
+#+begin_src shell
+cabal configure
+cabal build
+#+end_src
+This should technically build on any system that supports all the
+needed libraries, which probably include macOS and Windows along with Linux.
+This has only been tried on Linux.
+
 * Hamlog Application Usage
 
 #+CAPTION: The user interface for the hamlog application.
