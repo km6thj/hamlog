@@ -155,6 +155,7 @@ runHamLog defaultConfig emptyLogState $ do
    writeLog
 #+end_src
 Note that most things in this library are subject to change still.
+See the source for details.
 
 * Todo List
 ** TODO Compute distances between locations
