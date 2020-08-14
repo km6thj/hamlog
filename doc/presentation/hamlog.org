@@ -1,0 +1,142 @@
+#+TITLE: Amateur Radio Logging Software In Haskell
+#+OPTIONS: H:2 toc:nil
+#+LATEX_CLASS: beamer
+#+COLUMNS: %45ITEM %10BEAMER_env(Env) %10BEAMER_act(Act) %4BEAMER_col(Col) %8BEAMER_opt(Opt)
+#+BEAMER_THEME: Dresden
+#+BEAMER_COLOR_THEME: dove
+#+BEAMER_FONT_THEME:
+#+BEAMER_INNER_THEME:
+#+BEAMER_OUTER_THEME:
+#+BEAMER_HEADER:
+
+#+LATEX_HEADER: \definecolor{links}{HTML}{2A1B81}
+#+LATEX_HEADER: \hypersetup{colorlinks,linkcolor=,urlcolor=links}
+
+* Outline
+** Outline
+1. Motivation
+2. Design
+3. Packages used / impressions
+4. Quick demo / discussion / code?
+
+* For What? -- Motivation
+** Amateur Radio Service
+   - Allocation of frequencies for amateur use
+   - Direct communication, no cell network
+   - License required (easy to get)
+   - Mainly hobby, some people support emergency services
+
+** Radio Contests
+   #+ATTR_BEAMER: :overlay <+->
+   - Contacting lots of radio stations in given time.
+   - *Document* the stations and exchanged information.
+   - Keep for reference and send to contest organizers for ranking.
+   - Most people use software for logging.
+   - WHY do people do this?? --- For fun!
+
+** Logging Software
+   - Log other station's call sign, name, signal report, etc.
+   - Mostly for Microsoft Windows
+   - Mostly not what I like
+   - Not in Haskell :-)
+
+** Goal: Write Logging Software
+   - Purely console based
+   - Quick and easy to use
+   - In Haskell (for fun and education)
+
+* Overall Design
+** Overview
+   - Separate functionality from UI
+   - Monad that implements functionality: /Hamlog/
+   - UI using a ncurses-like library
+** Hamlog Monad
+   - Configuration stored in text file
+   #+begin_src json
+   {
+    "_configLogFile": "hamlog.json",
+    "_configMyCallsign": "km6hqs",
+    "_configMyLocation": "Sunnyvale"
+   }
+   #+end_src
+** Hamlog Monad
+   - State: Log with contacts stored in text file
+   #+begin_src json
+   {
+    "_logQsos": [
+        {
+            "_qsoTimeStart": "2018-07-01T01:49:43Z",
+            "_qsoSentExchange": "",
+            "_qsoCallsign": "zy7def",
+            "_qsoSentRST": {
+                "tag": "RST",
+                "contents": [
+     ....
+   },
+   #+end_src
+** Hamlog Monad
+   - Monad should provide easy access and DSL-like operations
+ #+begin_src haskell
+ q :: Qso
+ q = ...
+ main = do
+    runHamLog config state $ do 
+       readLog
+       newQsoNow $ Qso { ...
+       updateQso 10 q
+       deleteQso 5
+ #+end_src
+** User Interface
+   - Provide user interface to create/modify/delete operations
+   - Should be fast and easy to use
+
+* Used Packages / Experience
+** Non-UI Packages
+*** [[https://hackage.haskell.org/package/time-1.1.4][Data.Time]]
+   - Provides /UTCTime/ type and supporting functions
+   - All times in radio communications in UTC time
+   - Very handy!
+*** [[https://hackage.haskell.org/package/transformers-0.5.5.0/docs/Control-Monad-Trans-RWS-Lazy.html][RWS transformer]]
+    - Reader, Writer, State all in one
+    - Used for the Hamlog monad
+    - /Reader/: Configuration; /Writer/: Currently unused; /State/: Storing the log
+
+** Non-UI Packages
+*** [[http://hackage.haskell.org/package/aeson][Aeson]]
+    - Convenient support for JSON
+    - Uses Template Haskell to generate code for JSON support
+    - Storing the logged information in JSON file
+    - Reading data from FCC online database
+*** [[http://hackage.haskell.org/package/HTTP][HTTP]]
+    - Convenient support for HTTP requests
+    - Used for requesting station information from FCC website
+
+** UI: Used Packages
+    #+attr_latex: :width 150px
+    [[./screenshot3.png]]
+
+*** [[http://hackage.haskell.org/package/brick-0.37.1][Brick/Vty]]
+    - ncurses-like terminal UI
+    - Fairly easy to use, but tendency for spaghetti-code (?)
+    - Took some time to figure out
+      - Tutorials exist, but were not too detailed
+
+
+** Overall Experience
+   - For most things, there is already a package on hackage
+   - Mostly it's about finding the right (canonical) package
+   - ... and finding out how to use it
+   - Sometimes not as straight forward as I would like
+   - RWS transformer is very useful as application base!
+     - Saves some work setting up your own monads.
+
+** Todo: UI code gets ugly
+   - Something better / on top of Brick?
+   - Is FRP (functional reactive programming) a better approach?
+** Todo: Functionality
+   - Configurable default values for entries
+   - Faster way to add new entries
+   - Concurrent network queries (currently waiting)
+
+
+* Demo / Discussion / Code?

@@ -1,0 +1,103 @@
+* HamLog
+** Introduction
+This is the attempt to make a console based logging application
+for Ham Radio contacts.
+It is meant to be simple and fast to use,
+but additional useful features may be added in the future.
+There are two parts:
+1. The Ham library, providing functions for creating and modifying
+   contact lists.
+2. The hamlog user facing application.
+
+* State of Development
+This is in an early development stage, but
+it should already be usable to try it out.
+
+* Hamlog Application Usage
+
+
+#+CAPTION: The user interface for the hamlog application.
+#+attr_html: :width 50%
+[[./doc/screenshot1.png]]
+
+
+
+Start the application from a terminal.
+Quit the application again.
+It will write a file /hamlog.config/, which you can edit.
+The file is in JSON format and contains
+- The name of the contacts log file
+- Your callsign
+- Your usual location
+The file looks somewhat like this:
+#+begin_src javascript
+{
+    "_configLogFile": "hamlog.json",
+    "_configMyCallsign": "xy6abc",
+    "_configMyLocation": "Santa Barbara"
+}
+#+end_src
+This information will be inserted automatically into new contacts.
+
+On exiting, the application also writes the contacts log file, the name of which
+is configurable in /hamlog.config/.
+
+Start the application again from the terminal and start adding contacts.
+There is a small help
+
+* Library Usage
+The HamLog monad is meant as an easy to use back end to
+manipulate log lists.
+A usage example would be:
+#+begin_src haskell
+runHamLog defaultConfig emptyLogState $ do
+   readLog
+   q <- newQsoNow
+   updateQso 0 $ q { _qsoFreqency = MHz 146.52,
+                     _qsoNotes    = "Nice contact!" }
+   writeLog
+#+end_src
+Note that most things in this library are subject to change still.
+
+* Todo List
+** TODO Compute distances between locations based on Travel library / Jord / OSM
+** TODO Add Cabrillo output to Contest typeclass.
+** TODO Update QSO time while typing QSO.
+   Update the UTC time with e.g. CTRL-T.
+** TODO End time optional
+** TODO Add an ID to each QSO
+   This would help to find duplicates. Until then, use everything, including date/time,
+   to find actual duplicates, minus the one we are searching for.
+** TODO Connection to radio
+** TODO Fix callsign lookup
+** TODO Search QSOs.
+** TODO For searching and dupe checks, add hash table?
+** TODO Tags, grouping by tags.
+** TODO Multiple selection?
+** TODO Scrollable notes, if necessary.
+** TODO Add versioning for files and data structures. Support converting from older versions.
+** TODO [#B] Multiple log files?
+   - Note taken on [2018-07-28 Sat 23:06] \\
+     This is simply possible by keeping log files in separate directories, along with configurations.
+** DONE Sanitize QSOs when updating / creating.
+   Remove leading and trailing whitespaces, possibly toUpper, etc.
+** DONE Point calculation NAQP
+   Add instance for Contest typeclass.
+** DONE Dupe check
+   - Note taken on [2020-07-07 Tue 00:21] \\
+     More or less done.
+** DONE Mode should stay the same for new contacts
+** DONE Point calculation FieldDay
+   - Note taken on [2020-06-30 Tue 23:03] \\
+     Done.
+** DONE [#A] Export to Cabrillo, configurable.
+   - Note taken on [2020-06-30 Tue 23:00] \\
+     Sort of works.
+** DONE Values for exchanges at contests.
+   CLOSED: [2018-07-28 Sat 23:05]
+   - Note taken on [2018-07-28 Sat 23:05] \\
+     Default values have been added to the config structure.
+     See QsoDefaults. FixedValue means the UI does not display the value,
+     DefaultValue means the UI displays it but pre-populates with the given value
+     in the config file.
+     This way the application can be configured to work better in contests.
