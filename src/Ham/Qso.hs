@@ -36,6 +36,7 @@ import Data.Time.LocalTime
 import Data.Text (unpack)
 
 
+
 defaultQsoTime = UTCTime (fromGregorian 2018 01 22) (timeOfDayToTime $ TimeOfDay 00 00 00)
 emptyQso = qsoWithDefaults emptyQsoDefaults -- Qso defaultQsoTime defaultQsoTime (MHz 0) PH mempty mempty (RST 0 0 0) mempty mempty mempty (RST 0 0 0) mempty mempty
 
