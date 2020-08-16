@@ -13,6 +13,7 @@ where
 
 import Ham.Log
 import Ham.Data
+import qualified Ham.CAT as CAT
 import Control.Concurrent.MVar
 import Control.Monad
 import Control.Monad.IO.Class
@@ -53,6 +54,7 @@ import Lens.Micro
 data AppState = AppState {
   logState :: LogState,             -- ^ State for the Hamlog monad.
   logConfig :: LogConfig,           -- ^ Configuration for the Hamlog monad.
+  catConfig :: CAT.CATConfig,       -- ^ Configuration for the CAT interface.
   qsoList :: List AppResource Qso,  -- ^ List of contacts to display
   qsoForm :: Form Qso HamlogEvent AppResource, -- ^ Form to enter new contacts
   focusRing :: F.FocusRing AppResource, -- ^ Focus ring to use
@@ -68,6 +70,7 @@ emptyAppState :: AppState
 emptyAppState =
   AppState { logState = emptyLogState,
              logConfig = defaultConfig,
+             catConfig = CAT.defaultConfig,
              qsoList = list LogList V.empty 1,
              qsoForm = newForm [] emptyQso,
              focusRing = lappDefaultFocusRing,
@@ -106,6 +109,13 @@ hamLog s act = do
   (a, ls, _) <- liftIO $ runHamLog (logConfig s) (logState s) $ act
   let s' = s { logState = ls }
   return (a, s')
+
+
+-- | Run a CAT action.
+cat :: AppState -> CAT.CAT (EventM AppResource) a -> EventM AppResource (a, AppState)
+cat s act = do
+  a <- CAT.runCAT (catConfig s) CAT.defaultState act
+  return (a, s)
 
 
 -- | Default focus ring. Empty.
@@ -287,7 +297,19 @@ lhandleEvent_list s ev =
           (_, s') <- hamLog s writeLog
           halt s'
 
-        VtyEvent (EvKey (KChar 'n') [])  -> continue =<< lappNewQso s
+        VtyEvent (EvKey (KChar 'n') [])  -> do
+          mf <- fst <$> cat s (CAT.catFrequency)
+          let
+            updated_qso_defaults = qso_defaults {
+              _qsoDefaultFrequency = case _qsoDefaultFrequency qso_defaults of
+                                       DefaultValue f -> DefaultValue (maybe f id mf)
+                                       a              -> a }
+            --, _qsoDefaultMode = case _qsoDefaultMode qso_defaults of
+            --                      DefaultValue _ -> DefaultValue (_qsoMode f) }
+            qso_defaults         = _configQsoDefaults $ logConfig s
+            updated_config       = (logConfig s) { _configQsoDefaults = updated_qso_defaults }
+            s'                   = s { logConfig = updated_config }
+          continue =<< lappNewQso s'
 
         VtyEvent (EvKey KBS [])         -> do
           let dlg = dialog (Just "Delete entry?") (Just (1, [("Yes", True), ("No", False)])) 25
