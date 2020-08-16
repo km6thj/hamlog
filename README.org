@@ -169,6 +169,13 @@ Note that most things in this library are subject to change still.
 See the source for details.
 
 * Todo List
+** TODO Connection to radio
+   - Note taken on [2020-08-15 Sat 23:01]
+     Support for Yaesu FT891 works, everything compiled in so far.
+*** TODO Write / read configuration from disk.
+    Currently it's compiled in.
+*** TODO Separate the serial interface for particular radios from CAT.hs
+*** TODO Add error handling to CAT
 ** TODO Compute distances between locations
 ** TODO Add Cabrillo output to Contest typeclass.
 ** TODO Update QSO time while typing QSO.
@@ -177,7 +184,6 @@ See the source for details.
 ** TODO Add an ID to each QSO
    This would help to find duplicates. Until then, use everything, including date/time,
    to find actual duplicates, minus the one we are searching for.
-** TODO Connection to radio
 ** TODO Fix callsign lookup
 ** TODO Search QSOs.
 ** TODO For searching and dupe checks, add hash table?
