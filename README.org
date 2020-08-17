@@ -168,6 +168,19 @@ runHamLog defaultConfig emptyLogState $ do
 Note that most things in this library are subject to change still.
 See the source for details.
 
+* CAT Interface
+There is a rudimentary CAT (computer aided transceiver) interface in Hamlib.
+Currently, the Yaesu FT-891 is supported.
+Basically, the steps you need to do to support a new radio are simple:
+See the module Ham.CAT.SerialCAT; you need to add a set of functions in a SerialCAT structure.
+It is currently assumed that the radio is connected using a serial interface, e.g. via USB.
+
+You can check out Ham.CAT.YaesuFT891 for an example how it is currently done for the Yaesu FT-891.
+This interface may change in the future.
+
+The terminal UI supports reading the frequency and the current communications mode when
+creating a new contact.
+
 * Todo List
 ** TODO Connection to radio
    - Note taken on [2020-08-15 Sat 23:01]
