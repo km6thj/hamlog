@@ -298,12 +298,15 @@ lhandleEvent_list s ev =
           halt s'
 
         VtyEvent (EvKey (KChar 'n') [])  -> do
-          mf <- fst <$> cat s (CAT.catFrequency)
+          (mf, mm) <- fst <$> cat s (do { f <- CAT.catFrequency; m <- CAT.catMode; return (f,m) } )
           let
             updated_qso_defaults = qso_defaults {
               _qsoDefaultFrequency = case _qsoDefaultFrequency qso_defaults of
                                        DefaultValue f -> DefaultValue (maybe f id mf)
-                                       a              -> a }
+                                       a              -> a,
+              _qsoDefaultMode = case _qsoDefaultMode qso_defaults of
+                                  DefaultValue m -> DefaultValue (maybe m id mm)
+                                  a              -> a }
             --, _qsoDefaultMode = case _qsoDefaultMode qso_defaults of
             --                      DefaultValue _ -> DefaultValue (_qsoMode f) }
             qso_defaults         = _configQsoDefaults $ logConfig s

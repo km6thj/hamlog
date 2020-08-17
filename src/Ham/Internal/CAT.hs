@@ -2,21 +2,19 @@
 
 module Ham.Internal.CAT where
 
-
+import Ham.CAT.SerialCAT
+import Ham.CAT.YaesuFT891
+import Ham.Internal.Data
 import qualified Data.ByteString.Char8 as B
 import System.Hardware.Serialport
-import Ham.Internal.Data
-import Control.Concurrent (threadDelay)
 import Control.Monad.Trans.RWS
 import Control.Monad.IO.Class
 import Control.Exception
 import Data.Maybe (isJust)
-import Data.Attoparsec.ByteString.Char8
-import Text.Printf
+
 
 data CATConfig = CATConfig { catPort :: String
-                           , catSerialSettings :: SerialPortSettings
-                           }
+                           , catSerialSettings :: SerialPortSettings }
 
 
 defaultConfig :: CATConfig
@@ -27,7 +25,6 @@ defaultConfig = CATConfig { catPort = "/dev/ttyUSB0"
                                                                       , parity = NoParity
                                                                       , flowControl = NoFlowControl
                                                                       , timeout = 2 } }
-
 
 data CATState = CATState { statePort :: Maybe SerialPort
                          , stateInterface :: SerialCAT }
@@ -84,6 +81,13 @@ catFrequency = CAT $ do
   maybe (return Nothing) (\s -> liftIO $ serialGetFrequency i s) ms
 
 
+catMode :: MonadIO m => CAT m (Maybe QsoMode)
+catMode = CAT $ do
+  ms <- gets statePort
+  i <- gets stateInterface
+  maybe (return Nothing) (\s -> liftIO $ serialGetMode i s) ms
+
+
 catPowerSSB :: MonadIO m => CAT m (Maybe Int)
 catPowerSSB = CAT $ do
   ms <- gets statePort
@@ -96,83 +100,3 @@ catSetPowerSSB power = CAT $ do
   ms <- gets statePort
   i <- gets stateInterface
   maybe (return ()) (\s -> liftIO $ serialSetPowerSSB i s power) ms
-
-
--- | Interface for radios that are communicating via serial interface.
-data SerialCAT = SerialCAT {
-    serialGetFrequency :: SerialPort -> IO (Maybe Frequency)
-  , serialSetPowerSSB :: SerialPort -> Int -> IO ()
-  , serialGetPowerSSB :: SerialPort -> IO (Maybe Int)
-}
-
-
-----------------------------------------------------------------------------------
--- Yaesu FT891 stuff below this line.
-
--- | Menu command ("EX")
-ft891Menu :: B.ByteString       -- Menu entry, P1 in the radio's CAT documentation
-          -> Maybe B.ByteString -- OPtional value to set, P2 in the radio's CAT documentation
-          -> B.ByteString       -- Resulting command to send to the radio.
-ft891Menu p1 p2 = B.pack "EX" <> p1 <> (maybe mempty id p2)
-
-
-yaesuFT891 :: SerialCAT
-yaesuFT891 = SerialCAT {
-  serialGetFrequency = \s -> do
-      send s $ B.pack "FA;"
-      -- Wait for 100ms to give the transceiver some time to answer;
-      -- I have not found a better way to do this at the moment with the serialport library.
-      -- It seems to set all operations to non-blocking.
-      -- Set the radio's CAT TOT to 10msec (minimum).
-      threadDelay 100000
-      a <- recv s 100
-      -- putStrLn $ B.unpack a
-      return $ parseFrequency a
-
-, serialGetPowerSSB = \s -> ft891GetMenu s "1601" intFromAnswer
-, serialSetPowerSSB = \s p -> ft891SetMenu s "1601" (printf "%.3d" p)
-  }
-
-
-ft891GetMenu :: SerialPort -> String -> (B.ByteString -> Parser a) -> IO (Maybe a)
-ft891GetMenu s menuName valueParser =  do
-    let menu = ft891Menu (B.pack menuName) Nothing
-    send s $ (menu <> B.pack ";")
-    threadDelay 100000
-    a <- recv s 100
-    return $
-      let r = parse (valueParser menu) a
-      in case r of
-        Done _ r' -> Just r'
-        _         -> Nothing
-
-
-ft891SetMenu :: SerialPort -> String -> String -> IO ()
-ft891SetMenu s menuName value =  do
-    let menu = ft891Menu (B.pack menuName) (Just $ B.pack value)
-    send s $ (menu <> B.pack ";")
-    -- putStrLn $ B.unpack menu
-    threadDelay 100000
-    _ <- recv s 100
-    return ()
-    -- putStrLn $ B.unpack a
-
-
-parseFrequency :: B.ByteString -> Maybe Frequency
-parseFrequency a = case r of
-                     Done s r' -> Just $ MHz $ realToFrac $ r' * 1e-6 -- Assuming the number returned is in Hertz.
-                     _         -> Nothing
-  where r = parse (doubleFromAnswer (B.pack "FA")) a
-
-
-
--- | Parse a double from an answer from the radio given the prefix.
-doubleFromAnswer :: B.ByteString  -- Prefix to ignore from the answer.
-                 -> Parser Double
-doubleFromAnswer prefix = string prefix *> double <* char ';'
-
-
--- | Parse an integer from an answer from the radio given the prefix.
-intFromAnswer :: B.ByteString -- Prefix to ignore from the answer.
-              -> Parser Int
-intFromAnswer prefix = string prefix *> decimal <* char ';'
