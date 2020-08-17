@@ -58,6 +58,8 @@ library
                   Ham.CabrilloTypes
                   Ham.Contest
                   Ham.CAT
+                  Ham.CAT.SerialCAT
+                  Ham.CAT.YaesuFT891
   other-modules:
                 Paths_ham
                 Ham.Internal.Qso
