@@ -4,9 +4,11 @@ module Ham.Internal.CAT where
 
 import Ham.CAT.SerialCAT
 import Ham.CAT.YaesuFT891
+import Ham.CAT.ElecraftKX2
 import Ham.Internal.Data
 import qualified Data.ByteString.Char8 as B
 import System.Hardware.Serialport
+import Control.Monad (when)
 import Control.Monad.Trans.RWS
 import Control.Monad.IO.Class
 import Control.Exception
@@ -35,7 +37,7 @@ defaultState = CATState { statePort = Nothing
                         , stateInterface = yaesuFT891 }
 
 
-newtype CAT m a = CAT { unCAT :: RWST CATConfig () CATState m a }
+newtype CAT m a = CAT { unCAT :: RWST CATConfig [String] CATState m a }
 
 instance Monad m => Functor (CAT m) where
   fmap f a = CAT $ fmap f (unCAT a)
@@ -48,8 +50,8 @@ instance Monad m => Monad (CAT m) where
   a >>= b = CAT $ unCAT a >>= (unCAT . b)
 
 
-runCAT :: MonadIO m => CATConfig -> CATState -> CAT m a -> m a
-runCAT config state act = fst <$> evalRWST (unCAT act') config state
+runCAT :: MonadIO m => CATConfig -> CATState -> CAT m a -> m (a, [String])
+runCAT config state act = evalRWST (unCAT act') config state
   where
     act' = catInit *> act <* catDeinit
 
@@ -64,7 +66,14 @@ catInit = CAT $ do
         (do { s <- openSerial portName serialSettings; return (Just s) })
         (\(e :: SomeException) -> {- putStrLn (show e) >> -} return Nothing)
   get >>= \a -> put (a { statePort = ms })
-  return $ if isJust ms then True else False
+  let ok = if isJust ms then True else False
+  if ok
+    then do
+      ident <- serialIdentify <$> gets stateInterface
+      a <- maybe (return False) (\s -> liftIO $ ident s) ms
+      tell $ ["Identifying configured radio: " <> show a]
+      return a
+    else return False
 
 
 catDeinit :: MonadIO m => CAT m ()

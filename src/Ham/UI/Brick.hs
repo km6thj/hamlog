@@ -14,6 +14,9 @@ where
 import Ham.Log
 import Ham.Data
 import qualified Ham.CAT as CAT
+import Ham.CAT.ElecraftKX2
+import Ham.CAT.YaesuFT891
+
 import Control.Concurrent.MVar
 import Control.Monad
 import Control.Monad.IO.Class
@@ -55,6 +58,7 @@ data AppState = AppState {
   logState :: LogState,             -- ^ State for the Hamlog monad.
   logConfig :: LogConfig,           -- ^ Configuration for the Hamlog monad.
   catConfig :: CAT.CATConfig,       -- ^ Configuration for the CAT interface.
+  catState  :: CAT.CATState,
   qsoList :: List AppResource Qso,  -- ^ List of contacts to display
   qsoForm :: Form Qso HamlogEvent AppResource, -- ^ Form to enter new contacts
   focusRing :: F.FocusRing AppResource, -- ^ Focus ring to use
@@ -70,7 +74,8 @@ emptyAppState :: AppState
 emptyAppState =
   AppState { logState = emptyLogState,
              logConfig = defaultConfig,
-             catConfig = CAT.defaultConfig,
+             catConfig = CAT.defaultConfig { CAT.catPort = "/dev/ttyUSB0" },
+             catState = CAT.defaultState { CAT.stateInterface = yaesuFT891 },
              qsoList = list LogList V.empty 1,
              qsoForm = newForm [] emptyQso,
              focusRing = lappDefaultFocusRing,
@@ -114,7 +119,8 @@ hamLog s act = do
 -- | Run a CAT action.
 cat :: AppState -> CAT.CAT (EventM AppResource) a -> EventM AppResource (a, AppState)
 cat s act = do
-  a <- CAT.runCAT (catConfig s) CAT.defaultState act
+  (a, w) <- CAT.runCAT (catConfig s) (catState s) act
+  liftIO $ mapM putStrLn w
   return (a, s)
 
 
