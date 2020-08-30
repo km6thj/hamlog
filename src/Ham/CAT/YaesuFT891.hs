@@ -1,6 +1,7 @@
 module Ham.CAT.YaesuFT891 (yaesuFT891) where
 
 import Ham.CAT.SerialCAT
+import Ham.CAT.Parser
 import Ham.Internal.Data
 
 import Control.Concurrent (threadDelay)
@@ -15,32 +16,21 @@ import Text.Printf
 
 yaesuFT891 :: SerialCAT
 yaesuFT891 = SerialCAT {
-  serialGetFrequency = \s -> ft891Get s "FA" frequencyFromAnswer
-, serialGetMode      = \s -> ft891Get s "MD0" modeFromAnswer
-, serialGetPowerSSB = \s -> ft891GetMenu s "1601" intFromAnswer
-, serialSetPowerSSB = \s p -> ft891SetMenu s "1601" (printf "%.3d" p)
+    serialGetFrequency = \s -> serialGet s "FA" frequencyFromAnswer
+  , serialGetMode      = \s -> serialGet s "MD0" modeFromAnswer
+  , serialGetPowerSSB = \s -> ft891GetMenu s "1601" intFromAnswer
+  , serialSetPowerSSB = \s p -> ft891SetMenu s "1601" (printf "%.3d" p)
+  , serialIdentify = identify_ft891
   }
 
 
-ft891Get :: SerialPort
-         -> String                     -- Command; e.g. FA for getting frequency of VFO A.
-         -> (B.ByteString -> Parser a) -- Decoder for the resulting answer from the radio.
-         -> IO (Maybe a)
-ft891Get s cmd parser = do
-  let cmd' = B.pack cmd <> B.pack ";"
-  send s cmd'
-  -- Wait for 100ms to give the transceiver some time to answer;
-  -- I have not found a better way to do this at the moment with the serialport library.
-  -- It seems to set all operations to non-blocking.
-  -- Set the radio's CAT TOT to 10msec (minimum).
-  threadDelay 100000
-  a <- recv s 100
-  -- putStrLn $ B.unpack a
 
-  return $
-      let r = parse (parser $ B.pack cmd) a
-      in maybeResult r
-
+identify_ft891 :: SerialPort -> IO Bool
+identify_ft891 s = do
+  mi <- serialGet s "ID" intFromAnswer
+  case mi of
+    Just 650 -> return True
+    _ -> return False
 
 
 
@@ -74,35 +64,6 @@ ft891SetMenu s menuName value =  do
     _ <- recv s 100
     return ()
     -- putStrLn $ B.unpack a
-
-
-parseFrequency :: B.ByteString -> Maybe Frequency
-parseFrequency a = case r of
-                     Done s r' -> Just $ MHz $ realToFrac $ r' * 1e-6 -- Assuming the number returned is in Hertz.
-                     _         -> Nothing
-  where r = parse (doubleFromAnswer (B.pack "FA")) a
-
-
-frequencyFromAnswer :: B.ByteString
-                    -> Parser Frequency
-frequencyFromAnswer prefix = do
-  string prefix
-  v <- double
-  char ';'
-  return $ MHz $ realToFrac $ v * 1e-6 -- Assuming the number returned is in Hertz.
-
-
--- | Parse a double from an answer from the radio given the prefix.
-doubleFromAnswer :: B.ByteString  -- Prefix to ignore from the answer.
-                 -> Parser Double
-doubleFromAnswer prefix = string prefix *> double <* char ';'
-
-
--- | Parse an integer from an answer from the radio given the prefix.
-intFromAnswer :: B.ByteString -- Prefix to ignore from the answer.
-              -> Parser Int
-intFromAnswer prefix = string prefix *> decimal <* char ';'
-
 
 modeFromAnswer :: B.ByteString
                -> Parser QsoMode
