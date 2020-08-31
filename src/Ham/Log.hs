@@ -17,6 +17,7 @@ module Ham.Log
      LogState(..),
      emptyLogState,
      -- ** Configuration
+     LogConfigV2(..),
      LogConfig(..),
      configLogFile,
      configQsoDefaults,
@@ -45,6 +46,8 @@ module Ham.Log
      getQsoList,
      getQsoSeq,
      asks,
+     -- ** Interacting with a radio via CAT
+     cat,
      -- ** Getting information from the FCC database.
      lookupFcc,
      lookupFccName,
@@ -71,16 +74,20 @@ import qualified Data.ByteString.Lazy as B
 import Data.Aeson.Encode.Pretty
 import Data.Aeson
 import Data.Maybe (isJust, fromJust)
+import qualified Data.Map as M
 import Control.Applicative ((<|>))
 import Control.Monad.Trans.RWS.Strict
 import Control.Monad.IO.Class
 import Control.Exception
 
 import Ham.Internal.Log
+import Ham.Internal.Log.Config
 import Ham.Fcc
 import Ham.Cabrillo
 import Ham.Qso
 import Ham.Data
+import qualified Ham.CAT as CAT
+import Ham.CAT.Radios
 
 import Lens.Micro.TH
 
@@ -101,12 +108,6 @@ sortLog_ l g = l { _logQsos = sortBy f (_logQsos l) }
   where f a b = compare (g a) (g b)
 
 
--- | Unused.
-qsoDayPair :: Qso -> (Day, Qso)
-qsoDayPair a = (d, a)
-  where d = utctDay $ _qsoTimeStart a
-
-
 -- | Write a log to a file in JSON format.
 logToFile :: Log -> FilePath -> IO ()
 logToFile l fp = B.writeFile fp $ encodePretty l
@@ -119,17 +120,6 @@ logFromFile fp =
     `catch` \(SomeException e) -> return Nothing
 
 
--- | Write the log configuration to a text file.
-configToFile :: LogConfig -> FilePath -> IO ()
-configToFile c fp =
-  B.writeFile fp $ encodePretty c
-
-
--- | Read the log configuration from a text file.
-configFromFile :: FilePath -> IO (Maybe LogConfig)
-configFromFile fp = (decode <$> B.readFile fp)
-      `catch` \(SomeException e) -> return Nothing
-
 
 --------------------------------------------------------------------------------
 -- Log monad.
@@ -140,35 +130,37 @@ and use the monadic actions such as 'readLog', 'newQsoNow', 'writeLog', etc.
 to modify the log and QSOs. -}
 type HamLog = RWST LogConfig [Text] LogState IO
 
-data LogState = LogState { _stateLog :: Log }
+data LogState = LogState { _stateLog :: Log
+                         , _stateSerialCAT :: Maybe CAT.SerialCAT }
 
 makeLenses ''LogState
-makeLenses ''LogConfig
 
 
 emptyLogState :: LogState
-emptyLogState = LogState emptyLog
+emptyLogState = LogState emptyLog Nothing
 
 
-defaultConfig :: LogConfig
-defaultConfig = LogConfig { _configLogFile = "hamlog.json" -- This is the name of the log database file.
-                          , _configQsoDefaults = emptyQsoDefaults
-                          }
+initState :: HamLog ()
+initState = do
+  catconf <- asks _configCat
+  -- Set the serial radio interface if there is one.
+  let mserial = M.lookup (CAT.catRadio catconf) serialInterface
+  maybe (return ()) (\serial -> do { s <- get; put s { _stateSerialCAT = Just serial } }) mserial
 
 
 -- | Run a 'HamLog' action and return the result and potential logging text.
 evalHamLog :: LogConfig -> LogState -> HamLog a -> IO (a, [Text])
-evalHamLog cfg s act = evalRWST act cfg s
+evalHamLog cfg s act = evalRWST (initState >> act) cfg s
 
 
 -- | Run a 'HamLog' action and return the final state and potential logging text.
 execHamLog :: LogConfig -> LogState -> HamLog a -> IO (LogState, [Text])
-execHamLog cfg s act = execRWST act cfg s
+execHamLog cfg s act = execRWST (initState >> act) cfg s
 
 
 -- | Run a 'HamLog' action and return the result, final state, and potential logging text.
 runHamLog :: LogConfig -> LogState -> HamLog a -> IO (a, LogState, [Text])
-runHamLog cfg s act = runRWST act cfg s
+runHamLog cfg s act = runRWST (initState >> act) cfg s
 
 
 -- | Read the log database from the file set in '_configLogFile' entry of the 'LogConfig'.
@@ -347,3 +339,16 @@ makeCabrillo cab = do
     myCall <- _qsoDefaultCallsign <$> asks _configQsoDefaults
     let l' = Prelude.concatMap toCabrillo l
     return $ CabrilloLog cab l'
+
+
+-- | Run a CAT action.
+cat :: CAT.CAT IO a -> HamLog (a, [Text])
+cat act = do
+  -- FIXME: fromJust may be somewhat dangerous. As it currently is used,
+  -- it wil always be set, but that is not guaranteed to remain this way.
+  radio_interface <- fromJust <$> gets _stateSerialCAT
+  conf <- asks _configCat
+  let catstate = CAT.defaultState { CAT.stateInterface = radio_interface }
+  (a, w) <- liftIO $ CAT.runCAT conf catstate act
+  let w' = Prelude.map T.pack w
+  return (a, w')
