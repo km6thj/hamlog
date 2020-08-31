@@ -11,7 +11,7 @@ import Text.Printf
 
 
 ----------------------------------------------------------------------------------
--- Yaesu FT891 stuff below this line.
+-- K3/KX2/KX3 stuff below this line.
 
 elecraftKX2 :: SerialCAT
 elecraftKX2 = SerialCAT {
