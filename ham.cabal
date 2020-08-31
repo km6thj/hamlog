@@ -34,7 +34,6 @@ library
                 time >= 1.8
               , aeson -any
               , containers >= 0.5.10
-              , aeson -any
               , aeson-pretty -any
               , bytestring -any
               , transformers -any
@@ -47,6 +46,8 @@ library
               , unordered-containers >= 0.2
               , array -any
               , unix >= 2.7.2
+              , serialport >= 0.4.7
+              , attoparsec >= 0.13
   exposed-modules:
                   Ham.Log
                   Ham.Qso
@@ -56,6 +57,12 @@ library
                   Ham.Cabrillo
                   Ham.CabrilloTypes
                   Ham.Contest
+                  Ham.CAT
+                  Ham.CAT.SerialCAT
+                  Ham.CAT.YaesuFT891
+                  Ham.CAT.ElecraftKX2
+                  Ham.CAT.Radios
+                  Ham.CAT.Parser
   other-modules:
                 Paths_ham
                 Ham.Internal.Qso
@@ -63,6 +70,11 @@ library
                 Ham.Internal.Fcc
                 Ham.Internal.Data
                 Ham.Internal.Contest
+                Ham.Internal.CAT
+                Ham.Internal.Log.Log
+                Ham.Internal.Log.Config
+                Ham.Internal.Log.V1
+                Ham.Internal.Log.V2
   default-language: Haskell2010
 
 executable hamlog
@@ -96,6 +108,7 @@ test-suite ham-test
   build-depends:
       base >=4.7 && <5
     , ham
+    , bytestring >= 0.10
   other-modules:
       Paths_ham
   default-language: Haskell2010
