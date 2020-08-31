@@ -168,7 +168,35 @@ runHamLog defaultConfig emptyLogState $ do
 Note that most things in this library are subject to change still.
 See the source for details.
 
+* CAT Interface
+There is a rudimentary CAT (computer aided transceiver) interface in Hamlib.
+Currently, the Yaesu FT-891 and the Elecraft K3/KX2/KX3 are supported.
+
+** Adding support for another radio
+Basically, the steps you need to do to support a new radio are simple:
+See the module Ham.CAT.SerialCAT; you need to add a set of functions in a SerialCAT structure.
+Check out the ones in Ham.CAT.YaesuFT891 and Ham.CAT.ElecraftKX2 for examples.
+It is currently assumed that the radio is connected using a serial interface, e.g. via USB.
+Note this interface may change in the future.
+Steps for adding a radio:
+- Add a SerialCAT interface and put it in a module in Ham.CAT, just like the existing radios.
+- Add a constructor for the new radio in Ham.CAT.Radios.Radio.
+- Add the SerialCAT interface to serialInterface in Ham.CAT.Radios.
+
+Each of these steps is really not much to do, the most work is probably the first one.
+
+The terminal UI supports reading the frequency and the current communications mode when
+creating a new contact.
+This functionality can be accessed in the `HamLog` monad also via the `cat` action.
+
 * Todo List
+** TODO Connection to radio
+   - Note taken on [2020-08-15 Sat 23:01]
+     Support for Yaesu FT891 works, everything compiled in so far.
+*** TODO Write / read configuration from disk.
+    Currently it's compiled in.
+*** TODO Separate the serial interface for particular radios from CAT.hs
+*** TODO Add error handling to CAT
 ** TODO Compute distances between locations
 ** TODO Add Cabrillo output to Contest typeclass.
 ** TODO Update QSO time while typing QSO.
@@ -177,7 +205,6 @@ See the source for details.
 ** TODO Add an ID to each QSO
    This would help to find duplicates. Until then, use everything, including date/time,
    to find actual duplicates, minus the one we are searching for.
-** TODO Connection to radio
 ** TODO Fix callsign lookup
 ** TODO Search QSOs.
 ** TODO For searching and dupe checks, add hash table?
