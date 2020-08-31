@@ -1,10 +1,9 @@
-{-# LANGUAGE DeriveAnyClass, FlexibleInstances, ScopedTypeVariables #-}
+{-# LANGUAGE DeriveAnyClass, FlexibleInstances, ScopedTypeVariables, DeriveGeneric, StandaloneDeriving #-}
 
 module Ham.Internal.CAT where
 
 import Ham.CAT.SerialCAT
-import Ham.CAT.YaesuFT891
-import Ham.CAT.ElecraftKX2
+import Ham.CAT.Radios
 import Ham.Internal.Data
 import qualified Data.ByteString.Char8 as B
 import System.Hardware.Serialport
@@ -12,15 +11,46 @@ import Control.Monad (when)
 import Control.Monad.Trans.RWS
 import Control.Monad.IO.Class
 import Control.Exception
+import Data.Aeson
 import Data.Maybe (isJust)
+import GHC.Generics
+
 
 
 data CATConfig = CATConfig { catPort :: String
-                           , catSerialSettings :: SerialPortSettings }
+                           , catRadio :: Radio
+                           , catSerialSettings :: SerialPortSettings } deriving (Generic, Show)
+
+-- Automatically derive Show instance. That's not inclded in the serialport library.
+deriving instance Show SerialPortSettings
+deriving instance Generic SerialPortSettings
+deriving instance Generic CommSpeed
+deriving instance Generic FlowControl
+deriving instance Generic StopBits
+deriving instance Generic Parity
+
+instance FromJSON SerialPortSettings
+instance ToJSON SerialPortSettings
+instance FromJSON CommSpeed
+instance ToJSON CommSpeed
+instance FromJSON FlowControl
+instance ToJSON FlowControl
+
+instance FromJSON StopBits
+instance ToJSON StopBits
+instance FromJSON Parity
+instance ToJSON Parity
+
+instance FromJSON CATConfig
+instance ToJSON CATConfig
+
+instance FromJSON Radio
+instance ToJSON Radio
 
 
 defaultConfig :: CATConfig
 defaultConfig = CATConfig { catPort = "/dev/ttyUSB0"
+                          , catRadio = YaesuFT891
                           , catSerialSettings = defaultSerialSettings { commSpeed = CS4800
                                                                       , bitsPerWord = fromIntegral 8
                                                                       , stopb = One

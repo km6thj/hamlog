@@ -117,11 +117,8 @@ hamLog s act = do
 
 
 -- | Run a CAT action.
-cat :: AppState -> CAT.CAT (EventM AppResource) a -> EventM AppResource (a, AppState)
-cat s act = do
-  (a, w) <- CAT.runCAT (catConfig s) (catState s) act
-  liftIO $ mapM putStrLn w
-  return (a, s)
+--cat :: AppState -> CAT.CAT (EventM AppResource) a -> EventM AppResource (a, AppState)
+--cat s act = hamlog s $ cat act
 
 
 -- | Default focus ring. Empty.
@@ -218,7 +215,7 @@ appInfoWidget s = info
 
             in case dupes of
               S.Empty -> str "No info."
-              _ -> vBox $ toList $ fmap f dupes
+              _ -> vBox $ toList (fmap f dupes) <> fmap (str . T.unpack) (statusText s)
                 where f dupe = if (duplicateBand dupe) && (duplicateMode dupe)
                                then withAttr "dupeWarn" $ str $ dupeToText dupe
                                else str $ dupeToText dupe
@@ -304,7 +301,7 @@ lhandleEvent_list s ev =
           halt s'
 
         VtyEvent (EvKey (KChar 'n') [])  -> do
-          (mf, mm) <- fst <$> cat s (do { f <- CAT.catFrequency; m <- CAT.catMode; return (f,m) } )
+          ((mf, mm), _) <- hamLog s $ fst <$> cat (do { f <- CAT.catFrequency; m <- CAT.catMode; return (f,m) } )
           let
             updated_qso_defaults = qso_defaults {
               _qsoDefaultFrequency = case _qsoDefaultFrequency qso_defaults of
