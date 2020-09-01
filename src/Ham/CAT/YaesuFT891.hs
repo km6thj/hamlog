@@ -14,6 +14,7 @@ import Text.Printf
 ----------------------------------------------------------------------------------
 -- Yaesu FT891 stuff below this line.
 
+-- | Interface for the Yaesu FT-891
 yaesuFT891 :: SerialCAT
 yaesuFT891 = SerialCAT {
     serialGetFrequency = \s -> serialGet s "FA" frequencyFromAnswer

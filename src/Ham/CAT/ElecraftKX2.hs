@@ -13,6 +13,7 @@ import Text.Printf
 ----------------------------------------------------------------------------------
 -- K3/KX2/KX3 stuff below this line.
 
+-- | Interface for the Elecraft radios K3, KX2, KX3.
 elecraftKX2 :: SerialCAT
 elecraftKX2 = SerialCAT {
     serialGetFrequency = \s -> serialGet s "FA" frequencyFromAnswer

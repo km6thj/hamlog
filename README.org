@@ -169,8 +169,15 @@ Note that most things in this library are subject to change still.
 See the source for details.
 
 * CAT Interface
-There is a rudimentary CAT (computer aided transceiver) interface in Hamlib.
+There is a CAT (computer aided transceiver) interface included.
 Currently, the Yaesu FT-891 and the Elecraft K3/KX2/KX3 are supported.
+There is a configuration section in the hamlog.config file that you should edit
+after the file has been written by the program for the first time.
+The identifiers for radios are:
+```
+YaesuFT891
+ElecraftK3   (supports K3, KX2, KX3)
+```
 
 ** Adding support for another radio
 Basically, the steps you need to do to support a new radio are simple:

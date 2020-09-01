@@ -1,5 +1,9 @@
 {-# LANGUAGE DeriveAnyClass, FlexibleInstances, ScopedTypeVariables, DeriveGeneric, StandaloneDeriving #-}
 
+{-| Computer Aided Transceiver interface.
+This provides a monad that allows to talk to serially connected transceivers.
+To support a transceiver, there must be a `SerialCAT' provided for it.
+-}
 module Ham.Internal.CAT where
 
 import Ham.CAT.SerialCAT
@@ -17,9 +21,11 @@ import GHC.Generics
 
 
 
-data CATConfig = CATConfig { catPort :: String
-                           , catRadio :: Radio
-                           , catSerialSettings :: SerialPortSettings } deriving (Generic, Show)
+-- | Configuration for the CAT monad.
+data CATConfig = CATConfig { catPort :: String  -- ^ Serial port the radio is connected to. In Linux e.g. "/dev/ttyUSB0".
+                           , catRadio :: Radio  -- ^ Radio identifier.
+                           , catSerialSettings :: SerialPortSettings  -- ^ Serial settings for the connection. Note the radio must have the same settings.
+                           } deriving (Generic, Show)
 
 -- Automatically derive Show instance. That's not inclded in the serialport library.
 deriving instance Show SerialPortSettings
@@ -48,6 +54,7 @@ instance FromJSON Radio
 instance ToJSON Radio
 
 
+-- | Default configuration. Note this assumes port and radio, so you will want to adjust it.
 defaultConfig :: CATConfig
 defaultConfig = CATConfig { catPort = "/dev/ttyUSB0"
                           , catRadio = YaesuFT891
@@ -58,15 +65,19 @@ defaultConfig = CATConfig { catPort = "/dev/ttyUSB0"
                                                                       , flowControl = NoFlowControl
                                                                       , timeout = 2 } }
 
-data CATState = CATState { statePort :: Maybe SerialPort
-                         , stateInterface :: SerialCAT }
+-- | State type for the CAT monad.
+data CATState = CATState { statePort :: Maybe SerialPort  -- ^ Serial port, if one is open.
+                         , stateInterface :: SerialCAT    -- ^ SerialCAT implementation for the radio.
+                         }
 
 
+-- | Default state. Note that this sets the SerialCAT to a default implementation. You will want to change that.
 defaultState :: CATState
 defaultState = CATState { statePort = Nothing
                         , stateInterface = yaesuFT891 }
 
 
+-- | The computer aided transceiver monad.
 newtype CAT m a = CAT { unCAT :: RWST CATConfig [String] CATState m a }
 
 instance Monad m => Functor (CAT m) where
@@ -80,7 +91,11 @@ instance Monad m => Monad (CAT m) where
   a >>= b = CAT $ unCAT a >>= (unCAT . b)
 
 
-runCAT :: MonadIO m => CATConfig -> CATState -> CAT m a -> m (a, [String])
+-- | Run an action in the CAT monad.
+runCAT :: MonadIO m => CATConfig
+       -> CATState -- ^ State to start with.
+       -> CAT m a
+       -> m (a, [String])
 runCAT config state act = evalRWST (unCAT act') config state
   where
     act' = catInit *> act <* catDeinit
@@ -106,6 +121,7 @@ catInit = CAT $ do
     else return False
 
 
+-- | Close everything down.
 catDeinit :: MonadIO m => CAT m ()
 catDeinit = CAT $ do
   ms <- gets statePort
@@ -113,6 +129,7 @@ catDeinit = CAT $ do
   get >>= \a -> put (a { statePort = Nothing })
 
 
+-- | Get the current frequency from the transceiver.
 catFrequency :: MonadIO m => CAT m (Maybe Frequency)
 catFrequency = CAT $ do
   ms <- gets statePort
@@ -120,6 +137,7 @@ catFrequency = CAT $ do
   maybe (return Nothing) (\s -> liftIO $ serialGetFrequency i s) ms
 
 
+-- | Get the current mode from the transceiver.
 catMode :: MonadIO m => CAT m (Maybe QsoMode)
 catMode = CAT $ do
   ms <- gets statePort
@@ -127,6 +145,7 @@ catMode = CAT $ do
   maybe (return Nothing) (\s -> liftIO $ serialGetMode i s) ms
 
 
+-- | Get the SSB power setting in watts.
 catPowerSSB :: MonadIO m => CAT m (Maybe Int)
 catPowerSSB = CAT $ do
   ms <- gets statePort
@@ -134,6 +153,7 @@ catPowerSSB = CAT $ do
   maybe (return Nothing) (\s -> liftIO $ serialGetPowerSSB i s) ms
 
 
+-- | Set the SSB power in watts.
 catSetPowerSSB :: MonadIO m => Int -> CAT m ()
 catSetPowerSSB power = CAT $ do
   ms <- gets statePort
