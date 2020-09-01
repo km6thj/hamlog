@@ -11,7 +11,7 @@ There are two parts:
 
 * State of Development
 This is in an early development stage, but
-it should already be usable to try it out.
+it should already be usable to try it out. It is being used by some on a daily basis.
 
 * Compiling
 Get GHC and Cabal using e.g. [[https://www.haskell.org/ghcup/]].
@@ -22,7 +22,7 @@ cabal build
 #+end_src
 This should technically build on any system that supports all the
 needed libraries, which probably include macOS and Windows along with Linux.
-This has only been tried on Linux.
+This has only been tried on Linux and macOS.
 
 * Hamlog Application Usage
 
@@ -48,28 +48,15 @@ Available options:
 
 Start the application from a terminal without any command line arguments.
 Quit the application again.
-It will write a file /hamlog.config/, which you can edit.
-The file is in JSON format and contains
-- The name of the contacts log file
-- Your callsign
-- Your usual location
-The file looks somewhat like this:
-#+begin_src javascript
-{
-    "_configLogFile": "hamlog.json",
-    "_configMyCallsign": "xy6abc",
-    "_configMyLocation": "Santa Barbara"
-}
-#+end_src
-This information will be inserted automatically into new contacts.
-
-On exiting, the application also writes the contacts log file, the name of which
-is configurable in /hamlog.config/.
+It will write a file /hamlog.config/, which you can and should edit.
+The file is in JSON format and contains a bunch of options, including
+a few that constitute default settings that will be inserted into new contacts,
+such as your callsign or your usual location. See the next section for a few more details.
 
 Start the application again from the terminal and start adding contacts.
 There is a small help window that will tell you which shortcut keys you can use.
 
-* Configuring the hamlog.config file
+* Editing the hamlog.config file
 The configuration file can be modified to
 - change what the default or fixed values for some entries are
 - change what is visible in the terminal UI
