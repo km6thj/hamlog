@@ -19,9 +19,9 @@ import Lens.Micro.TH
 
 -- | Configuration for a log, version 2.
 data LogConfigV2 = LogConfigV2 {
-  _configLogFile :: FilePath       -- ^ File to store the logged Qsos in.
+  _configLogFile :: FilePath          -- ^ File to store the logged Qsos in.
   , _configQsoDefaults :: QsoDefaults -- ^ Default values, if any, for Qsos.
-  , _configCat :: CAT.CATConfig
+  , _configCat :: CAT.CATConfig       -- ^ CAT configuration.
   } deriving Show
 
 
