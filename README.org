@@ -174,10 +174,10 @@ Currently, the Yaesu FT-891 and the Elecraft K3/KX2/KX3 are supported.
 There is a configuration section in the hamlog.config file that you should edit
 after the file has been written by the program for the first time.
 The identifiers for radios are:
-```
-YaesuFT891
-ElecraftK3   (supports K3, KX2, KX3)
-```
+
+- YaesuFT891
+- ElecraftK3   (supports K3, KX2, KX3)
+
 
 ** Adding support for another radio
 Basically, the steps you need to do to support a new radio are simple:
