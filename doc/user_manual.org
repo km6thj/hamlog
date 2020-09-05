@@ -15,8 +15,8 @@ Start the application again from the terminal and start adding contacts.
 There is a small help window that will tell you which shortcut keys you can use.
 
 #+CAPTION: The user interface for the hamlog application.
-#+attr_html: :width 50%
-[[./doc/screenshot1.png]]
+#+attr_html: :width 25%
+[[./screenshot1.png]]
 
 You can always get a help for command line options using
 #+begin_src shell
