@@ -1,0 +1,153 @@
+* Hamlog Application Usage
+Start the program from command line, either by calling the executable you downloaded,
+or by calling
+#+begin_src shell
+cabal run hamlog
+#+end_src
+if you just built the project as described in [[file:~/devel/hamlog/README.org]].
+Quit the application again by pressing the /q/ key.
+On exiting, it will write a file /hamlog.config/, which you can and should edit.
+The file is in JSON format and contains a bunch of options, including
+a few that constitute default settings that will be inserted into new contacts,
+such as your callsign or your usual location. See the next section for a few more details.
+
+Start the application again from the terminal and start adding contacts.
+There is a small help window that will tell you which shortcut keys you can use.
+
+#+CAPTION: The user interface for the hamlog application.
+#+attr_html: :width 50%
+[[./doc/screenshot1.png]]
+
+You can always get a help for command line options using
+#+begin_src shell
+hamlog --help
+hamlog
+
+Usage: hamlog [--cabrillo STRING] [--outfile STRING] [--config STRING]
+              [--points STRING]
+
+Available options:
+  -h,--help                Show this help text
+  --cabrillo STRING        Export to cabrillo; argument one of {naqp, fieldday}
+  --outfile STRING         Output file for cabrillo export.
+  --config STRING          hamlog.config file to use
+  --points STRING          Points for a contest, one of {fieldday}
+#+end_src
+
+
+* Editing the hamlog.config file
+The configuration file can be modified to
+- change what the default or fixed values for some entries are
+- change what is visible in the terminal UI
+- configure the CAT interface
+
+Take this configuration file excerpt:
+#+begin_src javascript
+{
+    "_configLogFile": "hamlog.json",
+    "_configQsoDefaults": {
+        "_qsoDefaultRST": {
+            "tag": "FixedValue",
+            "contents": {
+                "tag": "RST",
+                "contents": [
+                    0,
+                    0,
+                    0
+                ]
+            }
+        },
+        "_qsoDefaultFrequency": {
+            "tag": "DefaultValue",
+            "contents": 14.0582
+        },
+        "_qsoDefaultSentLocation": {
+            "tag": "FixedValue",
+            "contents": "CA"
+        },
+... and so on
+#+end_src
+The key names should be somewhat self-explanatory for Amateur Radio operators.
+For example, qsoDefaultSentLocation is the location that you sent during a
+contact. If that is always the same, you may want to put either a DefaultValue in there,
+like in the entry for qsoDefaultFrequency above, or a FixedValue as in qsoDefaultSentLocation
+above. DefaultValue means that the entry will be pre-populated with the given "contents" value,
+but can be changed from the UI. FixedValue means the value will also be set to the one given in "contents",
+but it will not be changeable from the UI and it will not be visible in the UI.
+This feature can be used to remove entries that you want to be the same anyway
+and that would just be clutter in the UI.
+
+This can be useful for contests, when all you want to see is for example the Exchange fields, and
+received callsigns.
+You would then set all fields that you don't want to see to FixedValue.
+
+For each configuration you want to use, you can simply create a new directory
+and then run the application from within that directory to create a new configuration file
+that you can then taylor to what you want to do, for example for another contest.
+
+For each field that normally represents a part of an exchange in a radio contact,
+there is a version containing the word "Sent" and one that does not contain "Sent".
+"Sent" is the value that you have sent, and the other one is the one you received.
+For example, there is "qsoDefaultSentLocation" and "qsoDefaultLocation".
+
+* CAT Interface
+There is a CAT (computer aided transceiver) interface included.
+Currently, the Yaesu FT-891 and the Elecraft K3/KX2/KX3 are supported.
+There is a configuration section in the hamlog.config file that you should edit
+after the file has been written by the program for the first time.
+The identifiers for radios are:
+
+- YaesuFT891
+- ElecraftK3   (supports K3, KX2, KX3)
+
+This is what the configuration section in /hamlog.config/ looks like at the moment, with some
+added comments as to what to put there:
+#+begin_src javascript
+...
+
+"_configCat": {
+        "catPort": "/dev/ttyUSB0",           // The serial port. This example is for Linux, in macOS it will be a different filesystem
+                                             // node located in /dev on your disk, usually /dev/tty.<something>.
+        "catRadio": "YaesuFT891",            // The radio identifier, like in the list above.
+        "catSerialSettings": {               // The serial port settings. These must match the ones your radio uses.
+            "parity": "NoParity",            // Parity, one of { Even, Odd, NoParity }
+            "stopb": "One",                  // Stopbits, one of { One, Two }
+            "flowControl": "NoFlowControl",  // Flow control, one of { Software, NoFlowControl }
+            "bitsPerWord": 8,                // Bits per word, an 8-bit value
+            "timeout": 2,                    // Timeout in tenths of a second
+            "commSpeed": "CS38400"           // Baud rate; one of the usual values between 110 and 115200 baud.
+        }
+...
+#+end_src
+
+Error reporting is at this moment not sufficient, so if it "just doesn't work", it is possible that one of the settings
+is not correct.
+
+* Export to Cabrillo format
+You can export an existing log to Cabrillo format.
+Currently, ARRL Field Day and NAQP outputs are supported.
+This is done using the application from the command line, like so:
+#+begin_src shell
+hamlog --cabrillo fieldday --outfile test.cab
+#+end_src
+Don't forget to check and edit the resulting file before uploading it -- no guarantees are being made :)
+* Calculating points for some contests
+You can also have the application compute points for some contests.
+Currently, ARRL Field Day (I know, not a contest), NAQP-CW and NAQP-SSB are supported.
+Use at your own risk, all this is to the best of my knowledge.
+Usage example:
+#+begin_src shell
+hamlog --points naqpcw
+Config file read successfully.
+Points total: PointsNAQP {pnaqpPointsPerBand = [(40m,6.0,7.0),(20m,9.0,10.0)], pnaqpTotalPoints = 132.0}
+#+end_src
+or
+#+begin_src shell
+hamlog --points fieldday
+Config file read successfully.
+Points total: FieldDayPoints {fdpTotal = 168.0, fdpPowerMult = 2.0, fdpBonus = 100.0, fdpQsos = [("CW",[("40m",7),("20m",10)]),("PH",[]),("DATA",[])]}
+#+end_src
+The output looks somewhat raw, but it's fairly straighforward to read. Since the Field Day web entry forms are expecting the number of contacts ordered by
+communications mode and band, that is what is output in addition to the computed points.
+This is not fully configurable at this time and therefore not usable for everyone.
+If you want to add another contest, please do so!
