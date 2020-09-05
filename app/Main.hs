@@ -27,7 +27,7 @@ import Options.Generic
 data Options w = Options { cabrillo :: w ::: Maybe String <?> "Export to cabrillo; argument one of {naqp, fieldday}"
                          , outfile :: w ::: Maybe String <?> "Output file for cabrillo export."
                          , config :: w ::: Maybe FilePath <?> "hamlog.config file to use"
-                         , points :: w ::: Maybe String <?> "Points for a contest, one of {fieldday}" } deriving  Generic
+                         , points :: w ::: Maybe String <?> "Points for a contest, one of {fieldday, naqpcw, naqpssb}" } deriving  Generic
 
 instance ParseRecord (Options Wrapped)
 deriving instance Show (Options Unwrapped)
