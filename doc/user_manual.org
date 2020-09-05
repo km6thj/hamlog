@@ -4,7 +4,7 @@ or by calling
 #+begin_src shell
 cabal run hamlog
 #+end_src
-if you just built the project as described in [[file:~/devel/hamlog/README.org]].
+if you just built the project as described in [[file:../README.org]].
 Quit the application again by pressing the /q/ key.
 On exiting, it will write a file /hamlog.config/, which you can and should edit.
 The file is in JSON format and contains a bunch of options, including
