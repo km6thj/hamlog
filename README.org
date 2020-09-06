@@ -68,8 +68,18 @@ This functionality can be accessed in the `HamLog` monad also via the `cat` acti
 
 * Todo List
 ** TODO [#A] Application hangs when radio is not connected.
+   - Note taken on [2020-09-06 Sun 14:06] \\
+     closeSerial blocks after writing / reading when the serial device exists
+     but is not connected.
+     There is no immediate way to get around that.
+     Mitigation: add error reporting to CAT and after first failure,
+     turn CAT off and let the user know.
    Add error checks!
    This happens when the serial port is configured to the wrong file node.
+** TODO Add versioning for files and data structures. Support converting from older versions.
+   - Note taken on [2020-09-05 Sat 13:22] \\
+     Works for hamlog.config. Need to add some error reporting if something fails.
+     Need to add support for versioning the log file.
 ** TODO Connection to radio
    - Note taken on [2020-09-05 Sat 13:21] \\
      Works so far SerialCAT implemented for FT891 and KX2/K3/KX3
@@ -96,10 +106,6 @@ This functionality can be accessed in the `HamLog` monad also via the `cat` acti
 ** TODO Tags, grouping by tags.
 ** TODO Multiple selection?
 ** TODO Scrollable notes, if necessary.
-** TODO Add versioning for files and data structures. Support converting from older versions.
-   - Note taken on [2020-09-05 Sat 13:22] \\
-     Works for hamlog.config. Need to add some error reporting if something fails.
-     Need to add support for versioning the log file.
 ** [#B] Multiple log files?
    - Note taken on [2018-07-28 Sat 23:06] \\
      This is simply possible by keeping log files in separate directories, along with configurations.
