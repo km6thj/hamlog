@@ -75,6 +75,7 @@ library
                 Ham.Internal.Log.Config
                 Ham.Internal.Log.V1
                 Ham.Internal.Log.V2
+                Ham.Internal.FixedSequence
   default-language: Haskell2010
 
 executable hamlog
