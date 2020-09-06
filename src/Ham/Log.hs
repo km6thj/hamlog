@@ -349,6 +349,6 @@ cat act = do
   radio_interface <- fromJust <$> gets _stateSerialCAT
   conf <- asks _configCat
   let catstate = CAT.defaultState { CAT.stateInterface = radio_interface }
-  (a, w) <- liftIO $ CAT.runCAT conf catstate act
-  let w' = Prelude.map T.pack w
-  return (a, w')
+  result <- liftIO $ CAT.runCAT conf catstate act
+  tell $ snd result
+  return result

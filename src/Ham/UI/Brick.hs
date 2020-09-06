@@ -16,6 +16,8 @@ import Ham.Data
 import qualified Ham.CAT as CAT
 import Ham.CAT.ElecraftKX2
 import Ham.CAT.YaesuFT891
+import qualified Ham.Internal.FixedSequence as FS
+import Ham.Internal.FixedSequence (FixedSequence)
 
 import Control.Concurrent.MVar
 import Control.Monad
@@ -52,7 +54,6 @@ import qualified Graphics.Vty as V
 import Lens.Micro
 
 
-
 -- | Application state for the 'Brick' UI.
 data AppState = AppState {
   logState :: LogState,             -- ^ State for the Hamlog monad.
@@ -64,6 +65,7 @@ data AppState = AppState {
   focusRing :: F.FocusRing AppResource, -- ^ Focus ring to use
   appMode :: AppMode,                   -- ^ Current mode of the app
   selectedQsoIndex :: Int,              -- ^ Index of the currently selected contact
+  infoText :: FixedSequence Text,       -- ^ Text to display in the info window
   statusText :: [Text],                 -- ^ Text to display in the status line
   duplicateQsos :: S.Seq Duplicate      -- ^ Any potential duplicates found.
   }
@@ -81,6 +83,7 @@ emptyAppState =
              focusRing = lappDefaultFocusRing,
              appMode = AppModeList,
              selectedQsoIndex = 0,
+             infoText = FS.emptyFS 10,
              statusText = [],
              duplicateQsos = S.Empty
            }
@@ -91,6 +94,7 @@ data HamlogEvent
 
 -- | Resource type to index widgets
 data AppResource = LogList |
+                   LogInfo |
                    LogQso |
                    LogQsoTimeStart |
                    LogQsoTimeEnd |
@@ -111,14 +115,10 @@ data AppResource = LogList |
 -- | Run a 'HamLog' action given the AppState, in the EventM monad.
 hamLog :: AppState -> HamLog a -> EventM AppResource (a, AppState)
 hamLog s act = do
-  (a, ls, _) <- liftIO $ runHamLog (logConfig s) (logState s) $ act
-  let s' = s { logState = ls }
+  (a, ls, logtext) <- liftIO $ runHamLog (logConfig s) (logState s) $ act
+  let s' = s { logState = ls, infoText = fs }
+      fs = foldr FS.addElement (infoText s) logtext
   return (a, s')
-
-
--- | Run a CAT action.
---cat :: AppState -> CAT.CAT (EventM AppResource) a -> EventM AppResource (a, AppState)
---cat s act = hamlog s $ cat act
 
 
 -- | Default focus ring. Empty.
@@ -208,21 +208,13 @@ appInfoWidget s = info
   where info = padTop (Pad 1) $ borderWithLabel (str "Info") body
         body = case (appMode s) of
           -- AppModeList -> str ""
-          _ ->
-            let
-              dupes = duplicateQsos s
-              dupeToText dupe = show dupe
-
-            in case dupes of
-              S.Empty -> str "No info."
-              _ -> vBox $ toList (fmap f dupes) <> fmap (str . T.unpack) (statusText s)
-                where f dupe = if (duplicateBand dupe) && (duplicateMode dupe)
-                               then withAttr "dupeWarn" $ str $ dupeToText dupe
-                               else str $ dupeToText dupe
-              -- _ -> str . T.unpack $ "Possible duplicates:\n" <>
-              --           T.unlines (map dupeToText $ toList dupes)
-
-          -- _ -> str ""
+          _ -> vLimitPercent 30 $ viewport LogInfo Both $ vBox $ fmap txt (FS.toList $ infoText s) <> toList (fmap f dupes)
+                  where
+                    dupes = duplicateQsos s
+                    dupeToText dupe = T.pack $ show dupe
+                    f dupe = if (duplicateBand dupe) && (duplicateMode dupe)
+                             then withAttr "dupeWarn" $ txt $ dupeToText dupe
+                             else txt $ dupeToText dupe
 
 
 
@@ -301,7 +293,7 @@ lhandleEvent_list s ev =
           halt s'
 
         VtyEvent (EvKey (KChar 'n') [])  -> do
-          ((mf, mm), _) <- hamLog s $ fst <$> cat (do { f <- CAT.catFrequency; m <- CAT.catMode; return (f,m) } )
+          ((mf, mm), s') <- hamLog s $ fst <$> cat (do { f <- CAT.catFrequency; m <- CAT.catMode; return (f,m) } )
           let
             updated_qso_defaults = qso_defaults {
               _qsoDefaultFrequency = case _qsoDefaultFrequency qso_defaults of
@@ -312,10 +304,10 @@ lhandleEvent_list s ev =
                                   a              -> a }
             --, _qsoDefaultMode = case _qsoDefaultMode qso_defaults of
             --                      DefaultValue _ -> DefaultValue (_qsoMode f) }
-            qso_defaults         = _configQsoDefaults $ logConfig s
-            updated_config       = (logConfig s) { _configQsoDefaults = updated_qso_defaults }
-            s'                   = s { logConfig = updated_config }
-          continue =<< lappNewQso s'
+            qso_defaults         = _configQsoDefaults $ logConfig s'
+            updated_config       = (logConfig s') { _configQsoDefaults = updated_qso_defaults }
+            s''                   = s' { logConfig = updated_config }
+          continue =<< lappNewQso s''
 
         VtyEvent (EvKey KBS [])         -> do
           let dlg = dialog (Just "Delete entry?") (Just (1, [("Yes", True), ("No", False)])) 25
@@ -382,8 +374,8 @@ lhandleEvent_qso s ev =
         VtyEvent (EvKey (KChar 'l') [MCtrl]) -> do
           let f = formState $ qsoForm s
           let s' = s { statusText = ["[Retrieving...]"] }
-          (name, _) <- hamLog s $ lookupFccName (_qsoCallsign f)
-          continue $ s { statusText = [name] }
+          (name, s') <- hamLog s $ lookupFccName (_qsoCallsign f)
+          continue $ s' { statusText = [name] }
 
 
         VtyEvent (EvKey (KChar 't') [MCtrl]) -> do

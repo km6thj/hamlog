@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveAnyClass, FlexibleInstances, ScopedTypeVariables, DeriveGeneric, StandaloneDeriving #-}
+{-# LANGUAGE DeriveAnyClass, FlexibleInstances, ScopedTypeVariables, DeriveGeneric, StandaloneDeriving, OverloadedStrings #-}
 
 {-| Computer Aided Transceiver interface.
 This provides a monad that allows to talk to serially connected transceivers.
@@ -6,18 +6,20 @@ To support a transceiver, there must be a `SerialCAT' provided for it.
 -}
 module Ham.Internal.CAT where
 
-import Ham.CAT.SerialCAT
-import Ham.CAT.Radios
-import Ham.Internal.Data
-import qualified Data.ByteString.Char8 as B
-import System.Hardware.Serialport
 import Control.Monad (when)
 import Control.Monad.Trans.RWS
 import Control.Monad.IO.Class
 import Control.Exception
 import Data.Aeson
+import qualified Data.ByteString.Char8 as B
 import Data.Maybe (isJust)
+import qualified Data.Text as T
+import Data.Text (Text)
 import GHC.Generics
+import Ham.CAT.SerialCAT
+import Ham.CAT.Radios
+import Ham.Internal.Data
+import System.Hardware.Serialport
 
 
 
@@ -78,7 +80,7 @@ defaultState = CATState { statePort = Nothing
 
 
 -- | The computer aided transceiver monad.
-newtype CAT m a = CAT { unCAT :: RWST CATConfig [String] CATState m a }
+newtype CAT m a = CAT { unCAT :: RWST CATConfig [Text] CATState m a }
 
 instance Monad m => Functor (CAT m) where
   fmap f a = CAT $ fmap f (unCAT a)
@@ -95,7 +97,7 @@ instance Monad m => Monad (CAT m) where
 runCAT :: MonadIO m => CATConfig
        -> CATState -- ^ State to start with.
        -> CAT m a
-       -> m (a, [String])
+       -> m (a, [Text])
 runCAT config state act = evalRWST (unCAT act') config state
   where
     act' = catInit *> act <* catDeinit
@@ -116,7 +118,7 @@ catInit = CAT $ do
     then do
       ident <- serialIdentify <$> gets stateInterface
       a <- maybe (return False) (\s -> liftIO $ ident s) ms
-      tell $ ["Identifying configured radio: " <> show a]
+      tell $ ["Identifying configured radio: " <> T.pack (show a)]
       return a
     else return False
 
@@ -134,7 +136,14 @@ catFrequency :: MonadIO m => CAT m (Maybe Frequency)
 catFrequency = CAT $ do
   ms <- gets statePort
   i <- gets stateInterface
-  maybe (return Nothing) (\s -> liftIO $ serialGetFrequency i s) ms
+  maybe
+    (tell ["Could not get frequency from radio"] >> return Nothing)
+    (\s -> do
+        f <- liftIO $ serialGetFrequency i s
+        tell ["Got frequency " <> T.pack (show f)]
+        return f
+    )
+    ms
 
 
 -- | Get the current mode from the transceiver.
@@ -142,7 +151,14 @@ catMode :: MonadIO m => CAT m (Maybe QsoMode)
 catMode = CAT $ do
   ms <- gets statePort
   i <- gets stateInterface
-  maybe (return Nothing) (\s -> liftIO $ serialGetMode i s) ms
+  maybe
+    (tell ["Could not get mode from radio."] >> return Nothing)
+    (\s -> do
+        a <- liftIO $ serialGetMode i s
+        tell ["Got mode " <> T.pack (show a)]
+        return a
+    )
+    ms
 
 
 -- | Get the SSB power setting in watts.
