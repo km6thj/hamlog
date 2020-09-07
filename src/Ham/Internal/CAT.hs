@@ -8,6 +8,8 @@ module Ham.Internal.CAT where
 
 import Control.Monad (when)
 import Control.Monad.Trans.RWS
+import Control.Monad.Trans.Except
+import Control.Monad.Trans.Class (lift)
 import Control.Monad.IO.Class
 import Control.Exception
 import Data.Aeson
@@ -79,8 +81,14 @@ defaultState = CATState { statePort = Nothing
                         , stateInterface = yaesuFT891 }
 
 
+data CATError = CATError CATErrorType Text deriving Show
+data CATErrorType = CATErrorGeneric
+                  | CATErrorIdentify
+  deriving Show
+
+
 -- | The computer aided transceiver monad.
-newtype CAT m a = CAT { unCAT :: RWST CATConfig [Text] CATState m a }
+newtype CAT m a = CAT { unCAT :: RWST CATConfig [Text] CATState (ExceptT CATError m) a }
 
 instance Monad m => Functor (CAT m) where
   fmap f a = CAT $ fmap f (unCAT a)
@@ -93,34 +101,54 @@ instance Monad m => Monad (CAT m) where
   a >>= b = CAT $ unCAT a >>= (unCAT . b)
 
 
+-- | Throw an exception in the `Overpass' monad.
+throwCAT :: Monad m => CATError -> CAT m a
+throwCAT = CAT . lift . throwE
+
+
+-- | Catching exceptions in the `Overpass' monad.
+catchCAT :: Monad m => CAT m a -> (CATError -> CAT m a) -> CAT m a
+catchCAT act c = CAT $ liftCatch catchE (unCAT act) (unCAT . c)
+
+
 -- | Run an action in the CAT monad.
 runCAT :: MonadIO m => CATConfig
        -> CATState -- ^ State to start with.
        -> CAT m a
-       -> m (a, [Text])
-runCAT config state act = evalRWST (unCAT act') config state
+       -> m (Either CATError (a, [Text]))
+runCAT config state act = runExceptT $ evalRWST (unCAT act') config state
   where
-    act' = catInit *> act <* catDeinit
+    act' = do
+      result <- catchCAT (catInit >> act) $ \e -> catDeinit >> throwCAT e
+      catDeinit
+      return result
+
+
 
 
 -- | FIXME: Add error handling. What if the radio can not be opened?
-catInit :: MonadIO m => CAT m Bool
-catInit = CAT $ do
-  portName <- asks catPort
-  serialSettings <- asks catSerialSettings
+catInit :: MonadIO m => CAT m ()
+catInit = do
+  result <- CAT $ do
+     portName <- asks catPort
+     serialSettings <- asks catSerialSettings
 
-  ms <- liftIO $ catch
-        (do { s <- openSerial portName serialSettings; return (Just s) })
-        (\(e :: SomeException) -> {- putStrLn (show e) >> -} return Nothing)
-  get >>= \a -> put (a { statePort = ms })
-  let ok = if isJust ms then True else False
-  if ok
-    then do
-      ident <- serialIdentify <$> gets stateInterface
-      a <- maybe (return False) (\s -> liftIO $ ident s) ms
-      tell $ ["Identifying configured radio: " <> T.pack (show a)]
-      return a
-    else return False
+     ms <- liftIO $ catch
+           (do { s <- openSerial portName serialSettings; return (Just s) })
+           (\(e :: SomeException) -> {- putStrLn (show e) >> -} return Nothing)
+     get >>= \a -> put (a { statePort = ms })
+     case ms of
+       Just s -> do
+         ident <- serialIdentify <$> gets stateInterface
+         a <- liftIO $ ident s
+         tell $ ["Identifying configured radio: " <> T.pack (show a)]
+         if a
+           then return Nothing
+           else return $ Just $ CATError CATErrorIdentify "Radio was not identified as the configured one."
+       _ -> return $ Just (CATError CATErrorGeneric "Could not open serial port.")
+  case result of
+    Just e -> throwCAT e
+    _ -> return ()
 
 
 -- | Close everything down.
