@@ -301,10 +301,10 @@ lhandleEvent_list s ev =
                                   a              -> a }
             --, _qsoDefaultMode = case _qsoDefaultMode qso_defaults of
             --                      DefaultValue _ -> DefaultValue (_qsoMode f) }
-            qso_defaults         = _configQsoDefaults $ logConfig s'
-            updated_config       = (logConfig s') { _configQsoDefaults = updated_qso_defaults }
-            s''                   = s' { logConfig = updated_config }
-          continue =<< lappNewQso s''
+            qso_defaults         = _configQsoDefaults $ logConfig s
+            updated_config       = (logConfig s) { _configQsoDefaults = updated_qso_defaults }
+            s'                   = s { logConfig = updated_config }
+          continue =<< lappNewQso s'
 
         VtyEvent (EvKey KBS [])         -> do
           let dlg = dialog (Just "Delete entry?") (Just (1, [("Yes", True), ("No", False)])) 25
