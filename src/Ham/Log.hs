@@ -239,9 +239,9 @@ fillFromCAT qso = do
     m <- CAT.catMode
     return (f,m)
   case result of
-    Left (CATError t s) -> tell [s] >> return qso
-    Right (mf, mm) -> return $ qso { _qsoFrequency = maybe (_qsoFrequency qso) id mf,
-                                     _qsoMode = maybe (_qsoMode qso) id mm }
+    Left (CAT.CATError t s) -> tell [s] >> return qso
+    Right ((mf, mm), _) -> return $ qso { _qsoFrequency = maybe (_qsoFrequency qso) id mf,
+                                          _qsoMode = maybe (_qsoMode qso) id mm }
 
 
 
