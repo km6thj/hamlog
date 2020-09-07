@@ -67,6 +67,8 @@ creating a new contact.
 This functionality can be accessed in the `HamLog` monad also via the `cat` action.
 
 * Todo List
+** TODO Minimal ADIF export to support LOTW
+** TODO ADIF import?
 ** TODO Add versioning for files and data structures. Support converting from older versions.
    - Note taken on [2020-09-05 Sat 13:22] \\
      Works for hamlog.config. Need to add some error reporting if something fails.
