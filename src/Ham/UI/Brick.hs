@@ -58,8 +58,6 @@ import Lens.Micro
 data AppState = AppState {
   logState :: LogState,             -- ^ State for the Hamlog monad.
   logConfig :: LogConfig,           -- ^ Configuration for the Hamlog monad.
-  catConfig :: CAT.CATConfig,       -- ^ Configuration for the CAT interface.
-  catState  :: CAT.CATState,
   qsoList :: List AppResource Qso,  -- ^ List of contacts to display
   qsoForm :: Form Qso HamlogEvent AppResource, -- ^ Form to enter new contacts
   focusRing :: F.FocusRing AppResource, -- ^ Focus ring to use
@@ -76,8 +74,6 @@ emptyAppState :: AppState
 emptyAppState =
   AppState { logState = emptyLogState,
              logConfig = defaultConfig,
-             catConfig = CAT.defaultConfig { CAT.catPort = "/dev/ttyUSB0" },
-             catState = CAT.defaultState { CAT.stateInterface = yaesuFT891 },
              qsoList = list LogList V.empty 1,
              qsoForm = newForm [] emptyQso,
              focusRing = lappDefaultFocusRing,
@@ -116,7 +112,9 @@ data AppResource = LogList |
 hamLog :: AppState -> HamLog a -> EventM AppResource (a, AppState)
 hamLog s act = do
   (a, ls, logtext) <- liftIO $ runHamLog (logConfig s) (logState s) $ act
-  let s' = s { logState = ls, infoText = fs }
+  let s' = s { logState = ls,
+               infoText = fs,
+               logConfig = (logConfig s) { _configUseCat = _stateUseCat ls } } -- Turn CAT on or off depending on the state delivered by HamLog. It could be there was an initialization error, in that case we want to turn off the configured CAT use flag.
       fs = foldr FS.addElement (infoText s) logtext
   return (a, s')
 
@@ -293,14 +291,13 @@ lhandleEvent_list s ev =
           halt s'
 
         VtyEvent (EvKey (KChar 'n') [])  -> do
-          ((mf, mm), s') <- hamLog s $ fst <$> cat (do { f <- CAT.catFrequency; m <- CAT.catMode; return (f,m) } )
           let
             updated_qso_defaults = qso_defaults {
               _qsoDefaultFrequency = case _qsoDefaultFrequency qso_defaults of
-                                       DefaultValue f -> DefaultValue (maybe f id mf)
+                                       DefaultValue f -> DefaultValue f
                                        a              -> a,
               _qsoDefaultMode = case _qsoDefaultMode qso_defaults of
-                                  DefaultValue m -> DefaultValue (maybe m id mm)
+                                  DefaultValue m -> DefaultValue m
                                   a              -> a }
             --, _qsoDefaultMode = case _qsoDefaultMode qso_defaults of
             --                      DefaultValue _ -> DefaultValue (_qsoMode f) }

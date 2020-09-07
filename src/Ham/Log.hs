@@ -17,7 +17,7 @@ module Ham.Log
      LogState(..),
      emptyLogState,
      -- ** Configuration
-     LogConfigV2(..),
+     LogConfigV3(..),
      LogConfig(..),
      configLogFile,
      configQsoDefaults,
@@ -32,6 +32,7 @@ module Ham.Log
      -- ** Manipulating QSOs.
      addQso,
      newQsoNow,
+     fillFromCAT,
      updateQso,
      deleteQso,
      sortLog,
@@ -76,6 +77,7 @@ import Data.Aeson
 import Data.Maybe (isJust, fromJust)
 import qualified Data.Map as M
 import Control.Applicative ((<|>))
+import Control.Monad (when)
 import Control.Monad.Trans.RWS.Strict
 import Control.Monad.IO.Class
 import Control.Exception
@@ -131,13 +133,14 @@ to modify the log and QSOs. -}
 type HamLog = RWST LogConfig [Text] LogState IO
 
 data LogState = LogState { _stateLog :: Log
+                         , _stateUseCat :: Bool   -- ^ Mirroring the configuration in _configCat in the LogConfig to be able to turn it off after a failed action.
                          , _stateSerialCAT :: Maybe CAT.SerialCAT }
 
 makeLenses ''LogState
 
 
 emptyLogState :: LogState
-emptyLogState = LogState emptyLog Nothing
+emptyLogState = LogState emptyLog True Nothing
 
 
 initState :: HamLog ()
@@ -145,7 +148,13 @@ initState = do
   catconf <- asks _configCat
   -- Set the serial radio interface if there is one.
   let mserial = M.lookup (CAT.catRadio catconf) serialInterface
-  maybe (return ()) (\serial -> do { s <- get; put s { _stateSerialCAT = Just serial } }) mserial
+  s <- get
+  c <- asks _configUseCat
+  put s { _stateSerialCAT = mserial
+        , _stateUseCat = c }
+  -- maybe (return ()) (\serial -> do { s <- get; put s { _stateSerialCAT = Just serial } }) mserial
+
+
 
 
 -- | Run a 'HamLog' action and return the result and potential logging text.
@@ -202,6 +211,7 @@ currentUtcTime = liftIO $ do
 
 -- | Create a new QSO with the current UTC time as reported by the operating system,
 -- and set the default values from the '_configQsoDefaults' values.
+-- uses `fillFromCAT` to fill some values from a connected radio, if any.
 newQsoNow :: HamLog Qso
 newQsoNow = do
   now <- currentUtcTime
@@ -210,8 +220,29 @@ newQsoNow = do
             { _qsoTimeStart = now
             , _qsoTimeEnd = (fromIntegral 60) `addUTCTime` now
             }
-  addQso q
-  return q
+  q' <- fillFromCAT q
+  addQso q'
+  return q'
+
+
+-- | Try to get a few values from a CAT connected radio.
+-- If the function is turned off (_stateUseCat is False), then the input is going to be
+-- returned unchanged. The same is true if there is an error while retrieving
+-- data from the radio.
+-- Note that when the functionality is turned on and there is an error, it may take a few seconds
+-- for the function to return. A message will be set in the Writer layer of HamLog,
+-- so that you can get the messages back with `evalHamLog`, `execHamLog`, or `runHamLog`.
+fillFromCAT :: Qso -> HamLog Qso
+fillFromCAT qso = do
+  result <- cat $ do
+    f <- CAT.catFrequency
+    m <- CAT.catMode
+    return (f,m)
+  case result of
+    Left (CATError t s) -> tell [s] >> return qso
+    Right (mf, mm) -> return $ qso { _qsoFrequency = maybe (_qsoFrequency qso) id mf,
+                                     _qsoMode = maybe (_qsoMode qso) id mm }
+
 
 
 -- | Update the QSO at the given position in the log with the given QSO.
@@ -342,13 +373,22 @@ makeCabrillo cab = do
 
 
 -- | Run a CAT action.
-cat :: CAT.CAT IO a -> HamLog (a, [Text])
+cat :: CAT.CAT IO a -> HamLog (Either CAT.CATError (a, [Text]))
 cat act = do
   -- FIXME: fromJust may be somewhat dangerous. As it currently is used,
   -- it wil always be set, but that is not guaranteed to remain this way.
-  radio_interface <- fromJust <$> gets _stateSerialCAT
-  conf <- asks _configCat
-  let catstate = CAT.defaultState { CAT.stateInterface = radio_interface }
-  result <- liftIO $ CAT.runCAT conf catstate act
-  tell $ snd result
-  return result
+  usecat <- gets _stateUseCat
+  if usecat
+    then do
+      radio_interface <- fromJust <$> gets _stateSerialCAT
+      conf <- asks _configCat
+      let catstate = CAT.defaultState { CAT.stateInterface = radio_interface }
+      result <- liftIO $ CAT.runCAT conf catstate act
+      case result of
+        Left (CAT.CATError t s) -> do
+          tell $ ["CAT failed: " <> s <> " - turning off CAT for now."]
+          s <- get
+          put  $ s { _stateUseCat = False }
+        Right a -> tell $ snd a
+      return result
+    else  return $ Left $ (CAT.CATError CAT.CATErrorGeneric "CAT is turned off.")

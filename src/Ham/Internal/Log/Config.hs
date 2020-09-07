@@ -5,8 +5,9 @@ module Ham.Internal.Log.Config (LogConfig
                                ,defaultConfig
                                ,configFromFile
                                ,configToFile
-                               ,module V1
-                               ,module V2)
+--                               ,module V1
+--                               ,module V2
+                               ,module Ham.Internal.Log.V3)
 
   where
 
@@ -19,32 +20,50 @@ import Data.Proxy
 import qualified Data.ByteString.Lazy as B
 import Ham.Internal.Qso
 import qualified Ham.Internal.Log.V1 as V1
-import Ham.Internal.Log.V2 as V2
+import qualified Ham.Internal.Log.V2 as V2
+import qualified Ham.Internal.Log.V3 as V3
+import Ham.Internal.Log.V3
 import Ham.Qso
 import qualified Ham.CAT as CAT
 
 
-type LogConfig = LogConfigV2
+type LogConfig = V3.LogConfigV3
 
 
 class ToLogConfig a b where
   toLogConfig :: a -> b
 
 
-instance ToLogConfig V1.LogConfigV1 LogConfigV2 where
-  toLogConfig (V1.LogConfigV1 logfile qsodefaults) = LogConfigV2 { _configLogFile = logfile,
-                                                                   _configQsoDefaults = qsodefaults,
-                                                                   _configCat = CAT.defaultConfig }
+instance ToLogConfig V1.LogConfigV1 V2.LogConfigV2 where
+  toLogConfig (V1.LogConfigV1 logfile qsodefaults) = V2.LogConfigV2 { V2._configLogFile = logfile,
+                                                                      V2._configQsoDefaults = qsodefaults,
+                                                                      V2._configCat = CAT.defaultConfig }
 
-instance ToLogConfig LogConfigV2 LogConfigV2 where
+instance ToLogConfig V1.LogConfigV1 V3.LogConfigV3 where
+  toLogConfig a = toLogConfig b
+    where b = toLogConfig a :: V2.LogConfigV2
+
+
+instance ToLogConfig V2.LogConfigV2 V2.LogConfigV2 where
+  toLogConfig = id
+
+
+instance ToLogConfig V2.LogConfigV2 V3.LogConfigV3 where
+  toLogConfig (V2.LogConfigV2 logfile qsodefaults catconf) = V3.LogConfigV3 { V3._configLogFile = logfile,
+                                                                              V3._configQsoDefaults = qsodefaults,
+                                                                              V3._configUseCat = False,
+                                                                              V3._configCat = CAT.defaultConfig }
+
+instance ToLogConfig V3.LogConfigV3 V3.LogConfigV3 where
   toLogConfig = id
 
 
 defaultConfig :: LogConfig
-defaultConfig = LogConfigV2 { _configLogFile = "hamlog.json" -- This is the name of the log database file.
-                            , _configQsoDefaults = emptyQsoDefaults
-                            , _configCat = CAT.defaultConfig
-                            }
+defaultConfig = V3.LogConfigV3 { V3._configLogFile = "hamlog.json" -- This is the name of the log database file.
+                               , V3._configQsoDefaults = emptyQsoDefaults
+                               , V3._configUseCat = False
+                               , V3._configCat = CAT.defaultConfig
+                               }
 
 
 -- | Read the log configuration from a text file.
@@ -52,9 +71,10 @@ configFromFile :: FilePath -> IO (Maybe LogConfig)
 configFromFile fp = do
   let p1 :: Proxy V1.LogConfigV1
       p1 = Proxy
-      p2 :: Proxy LogConfigV2
+      p2 :: Proxy V2.LogConfigV2
       p2 = Proxy
-  let a = sequence [configFromFile' fp p2, configFromFile' fp p1]
+      p3 = Proxy :: Proxy V3.LogConfigV3
+  let a = sequence [configFromFile' fp p3, configFromFile' fp p2, configFromFile' fp p1]
   result <- (liftM $ listToMaybe . catMaybes) a
   return result
 
