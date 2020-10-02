@@ -7,7 +7,7 @@
 name:           ham
 version:        0.1.0.0
 description:    Please see README.org
-homepage:
+homepage:       https://github.com/km6thj/hamlog
 bug-reports:
 author:         KM6THJ
 maintainer:     km6thj@goschs.de
@@ -18,12 +18,11 @@ build-type:     Simple
 cabal-version:  >= 1.10
 
 extra-source-files:
-    ChangeLog.md
     README.md
 
 source-repository head
   type: git
-  location:
+  location: https://github.com/km6thj/hamlog
 
 library
   hs-source-dirs:
