@@ -39,7 +39,7 @@ instance Show CategoryOperator where
 
 data CategoryPower = HIGH | LOW | QRP deriving (Show, Read)
 
-data CategoryStation = FIXED | MOBILE | PORTABLE | ROVER 
+data CategoryStation = FIXED | MOBILE | PORTABLE | ROVER
                      | ROVER_LIMITED | ROVER_UNLIMITED | EXPEDITION | HQ | SCHOOL
 instance Show CategoryStation where
     show FIXED = "FIXED"
@@ -71,7 +71,7 @@ instance Show CategoryOverlay where
 data YesNo = YES | NO deriving (Show, Read)
 
 data Cabrillo = Cabrillo
-            { 
+            {
                 version :: VersionNumber
             , callsign :: Maybe Text
             , contest :: Maybe Text
@@ -127,7 +127,7 @@ defaultCabrillo = Cabrillo (VersionNumber 3 0)
 
 
 
-showtext d f a = fmap (\b -> L.concat [a, unpack b]) $ f d 
+showtext d f a = fmap (\b -> L.concat [a, unpack b]) $ f d
 showother d f a = fmap (\b -> L.concat [a, show b]) $ f d
 showlist :: d -> (d -> Maybe [Text]) -> String -> Maybe String
 showlist d f a = fmap (\b -> a ++ L.unwords (L.map unpack b)) $ f d
@@ -163,7 +163,7 @@ instance Show Cabrillo where
 
 
 
-data CabrilloLine = CLSoapbox Text | CLQso CabrilloQso 
+data CabrilloLine = CLSoapbox Text | CLQso CabrilloQso
                   | CLX Text Text | CLXQso CabrilloQso
 
 instance Show CabrilloLine where
@@ -173,9 +173,9 @@ instance Show CabrilloLine where
     show (CLXQso a) = "X-QSO: " ++ show a
 
 -- Note: OffTime is missing.
-data CabrilloQso = CabrilloQso 
-                        Frequency Mode UTCTime 
-                        CabrilloInfoSent CabrilloInfoReceived 
+data CabrilloQso = CabrilloQso
+                        Frequency Mode UTCTime
+                        CabrilloInfoSent CabrilloInfoReceived
                         (Maybe TransmitterNumber)
 
 data CabrilloInfo = CabrilloInfo Callsign Exchange
@@ -192,7 +192,7 @@ type TransmitterNumber = Int
 data Mode = CW | PH | FM | RY | DG deriving (Show, Read)
 
 instance Show CabrilloQso where
-    show (CabrilloQso (MHz f) m t s r mn) = L.unwords $ 
+    show (CabrilloQso (MHz f) m t s r mn) = L.unwords $
         [
          show $ round (f * 1000)
         ,show m
@@ -209,7 +209,7 @@ instance Show CabrilloQso where
 data CabrilloLog = CabrilloLog Cabrillo [CabrilloLine]
 
 instance Show CabrilloLog where
-    show (CabrilloLog c ls) = 
+    show (CabrilloLog c ls) =
         L.unlines $ [
             "START-OF-LOG: 3.0"
             ,show c

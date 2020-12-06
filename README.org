@@ -67,7 +67,10 @@ creating a new contact.
 This functionality can be accessed in the `HamLog` monad also via the `cat` action.
 
 * Todo List
+** TODO Switch in the UI for using CAT yes/no
+** TODO Switch in the UI for automatic insertion of time yes/no
 ** TODO Minimal ADIF export to support LOTW
+** TODO Export to support SOTA
 ** TODO ADIF import?
 ** TODO Add versioning for files and data structures. Support converting from older versions.
    - Note taken on [2020-09-05 Sat 13:22] \\

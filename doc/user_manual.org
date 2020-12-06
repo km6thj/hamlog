@@ -23,15 +23,17 @@ You can always get a help for command line options using
 hamlog --help
 hamlog
 
-Usage: hamlog [--cabrillo STRING] [--outfile STRING] [--config STRING]
-              [--points STRING]
+Usage: hamlog [--cabrillo STRING] [--lotw STRING] [--outfile STRING]
+              [--config STRING] [--points STRING]
 
 Available options:
   -h,--help                Show this help text
   --cabrillo STRING        Export to cabrillo; argument one of {naqp, fieldday}
+  --lotw STRING            Export to LOTW; argument is the file name.
   --outfile STRING         Output file for cabrillo export.
   --config STRING          hamlog.config file to use
-  --points STRING          Points for a contest, one of {fieldday}
+  --points STRING          Points for a contest, one of {fieldday, naqpcw,
+                           naqpssb}
 #+end_src
 
 
@@ -131,6 +133,14 @@ This is done using the application from the command line, like so:
 hamlog --cabrillo fieldday --outfile test.cab
 #+end_src
 Don't forget to check and edit the resulting file before uploading it -- no guarantees are being made :)
+
+* Export to ADIF for Logbook Of The World (LOTW) upload
+You can export an existing log to LOTW ADIF format.
+This is a minimalistic ADIF file that is similar in structure to what is
+created using ARRL's TQSL program.
+You have to read the created file into TQSL and use TQSL to upload the log.
+*NOTE* this has not been tested very well, but is expected to work.
+
 * Calculating points for some contests
 You can also have the application compute points for some contests.
 Currently, ARRL Field Day (I know, not a contest), NAQP-CW and NAQP-SSB are supported.

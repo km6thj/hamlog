@@ -54,6 +54,7 @@ library
                   Ham.Data
                   Ham.UI.Brick
                   Ham.Cabrillo
+                  Ham.ADIF
                   Ham.CabrilloTypes
                   Ham.Contest
                   Ham.CAT

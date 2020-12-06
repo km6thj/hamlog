@@ -4,11 +4,15 @@
 module Main where
 
 import Control.Monad.IO.Class (liftIO)
+import Data.Foldable (toList)
+import Ham.ADIF
 import Ham.Log as HL
 import Ham.Cabrillo
 import Ham.CabrilloTypes
 import Ham.UI.Brick
 import Data.List as L
+import qualified Data.Text as T (concat, unpack)
+import qualified Data.Sequence as S
 import Brick.Main
 import qualified Graphics.Vty as V
 import Ham.Fcc
@@ -25,6 +29,7 @@ import GHC.Generics
 import Options.Generic
 
 data Options w = Options { cabrillo :: w ::: Maybe String <?> "Export to cabrillo; argument one of {naqp, fieldday}"
+                         , lotw :: w ::: Maybe String <?> "Export to LOTW; argument is the file name."
                          , outfile :: w ::: Maybe String <?> "Output file for cabrillo export."
                          , config :: w ::: Maybe FilePath <?> "hamlog.config file to use"
                          , points :: w ::: Maybe String <?> "Points for a contest, one of {fieldday, naqpcw, naqpssb}" } deriving  Generic
@@ -41,6 +46,7 @@ main = do
       configfilename = maybe "hamlog.config" id $ config opts
       mcabrillo = cabrillo opts
       moutfile = outfile opts
+      mlotw = lotw opts
       callsign = ""
       location = ""
       name = ""
@@ -111,6 +117,19 @@ main = do
             "Please edit the Cabrillo output file to add your callsign, name,"
             ,"and edit your points, and any other changes you may want to make."]
           exitSuccess
+
+  case mlotw of
+    Nothing -> return ()
+    Just adifname -> do
+      let act = do
+            readLog
+            qsos <- getQsoSeq
+            let texts = fmap qsoAdif qsos
+            return texts
+      (texts, _) <- evalHamLog cfg emptyLogState act
+      let t = T.unpack $ T.concat $ toList $ S.intersperse "\n" texts
+      writeFile adifname t
+      exitSuccess
 
 
   initialVty <- buildVty
